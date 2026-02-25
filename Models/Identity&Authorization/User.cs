@@ -6,6 +6,7 @@ namespace B2B_Procurement___Order_Management_Platform.Models.Identity_Authorizat
     public class User
     {
         public int Id { get; set; }
+
         public string Email { get; set; } = default!;
         public string Password { get; private set; } 
         public bool IsActive { get; set; } = true;
