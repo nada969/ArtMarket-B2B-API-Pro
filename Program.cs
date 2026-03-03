@@ -1,3 +1,6 @@
+using B2B_Procurement___Order_Management_Platform.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore;
 
 namespace B2B_Procurement___Order_Management_Platform
 {
@@ -6,11 +9,20 @@ namespace B2B_Procurement___Order_Management_Platform
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            //builder.Services.AddDbContext<UserDb>(options =>
+            //    options.UseInMemoryDatabase("UsersList")
+            //);
 
-            // Add services to the container.
+            //builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+            builder.Services.AddDbContext<UserDb>(options =>
+                options.UseNpgsql(connectionString)
+            );
 
             builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+
             builder.Services.AddOpenApi();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -27,9 +39,8 @@ namespace B2B_Procurement___Order_Management_Platform
 
             app.UseAuthorization();
 
-
             app.MapControllers();
-
+            
             app.Run();
         }
     }
