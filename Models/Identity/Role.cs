@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace B2B_Procurement___Order_Management_Platform.Models.Identity_Authorization
+namespace B2B_Procurement___Order_Management_Platform.Models.Identity
 {
     public class Role
     {

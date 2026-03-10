@@ -1,6 +1,10 @@
 using B2B_Procurement___Order_Management_Platform.Data;
-using Microsoft.EntityFrameworkCore;
+using B2B_Procurement___Order_Management_Platform.Repositories.Identity;
+using B2B_Procurement___Order_Management_Platform.Repositories.Products;
+using B2B_Procurement___Order_Management_Platform.Services;
+using B2B_Procurement___Order_Management_Platform.Services.Products;
 using Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace B2B_Procurement___Order_Management_Platform
 {
@@ -9,20 +13,28 @@ namespace B2B_Procurement___Order_Management_Platform
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            //builder.Services.AddDbContext<UserDb>(options =>
-            //    options.UseInMemoryDatabase("UsersList")
-            //);
-
-            //builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-
+            
+            //// Data and Models
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");            
             builder.Services.AddDbContext<UserDb>(options =>
                 options.UseNpgsql(connectionString)
             );
+            builder.Services.AddDbContext<ProductDb>(options =>
+               options.UseNpgsql(connectionString)
+           );
 
+            //// the Services
+            builder.Services.AddScoped<IUserService, UserServices>();
+            builder.Services.AddScoped<IProductServices, ProductServices>();
+
+            /// the repository
+            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+            //// the controller
             builder.Services.AddControllers();
 
+            //// OpenAPI && Swagger
             builder.Services.AddOpenApi();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();

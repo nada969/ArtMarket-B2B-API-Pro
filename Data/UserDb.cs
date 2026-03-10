@@ -1,4 +1,4 @@
-﻿using B2B_Procurement___Order_Management_Platform.Models.Identity_Authorization;
+﻿using B2B_Procurement___Order_Management_Platform.Models.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace B2B_Procurement___Order_Management_Platform.Data
@@ -8,6 +8,6 @@ namespace B2B_Procurement___Order_Management_Platform.Data
         public UserDb(DbContextOptions<UserDb> options)
             : base(options) { }
 
-        public DbSet<User> Users => Set<User>();
+        public DbSet<User> Users { get; set; }
     }
 }

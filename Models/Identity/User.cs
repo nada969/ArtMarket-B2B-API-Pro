@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Permissions;
 
-namespace B2B_Procurement___Order_Management_Platform.Models.Identity_Authorization
+namespace B2B_Procurement___Order_Management_Platform.Models.Identity
 {
     public class User 
     {

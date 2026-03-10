@@ -1,4 +1,5 @@
-﻿using B2B_Procurement___Order_Management_Platform.Models.Identity_Authorization;
+﻿using B2B_Procurement___Order_Management_Platform.Models.Identity;
+using B2B_Procurement___Order_Management_Platform.Repositories.Identity;
 using Microsoft.AspNetCore.Identity;
 
 namespace B2B_Procurement___Order_Management_Platform.Services
@@ -7,26 +8,26 @@ namespace B2B_Procurement___Order_Management_Platform.Services
     public interface IUserService
     {
         List<User> GetUsers();
-        User CreateUser(string email, string password);
+        //User CreateUser(string email, string password);
     }
 
     public class UserServices: IUserService
     {
-        private readonly List<User> _users;
-        public UserServices(List<User> users)
+        private readonly IUserRepository _userRepository;
+        public UserServices(IUserRepository userRepository)
         {
-            _users = users;
+            _userRepository = userRepository;
         }
         public List<User> GetUsers()
         {
-            return this._users;
+            return _userRepository.GetUsers();
         }
-        public User CreateUser(string email, string password)
-        {
-            var user = new User(email, password);
-            password.GetHashCode();
-            return user;
-        }
+        //public User CreateUser(string email, string password)
+        //{
+        //    var user = new User(email, password);
+        //    password.GetHashCode();
+        //    return user;
+        //}
        
 
     }
