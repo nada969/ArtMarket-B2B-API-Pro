@@ -22,7 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DTOs\" />
+    <Folder Include="Migrations\" />
+    <Folder Include="Docs\" />
   </ItemGroup>
 
 </Project>

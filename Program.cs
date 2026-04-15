@@ -21,7 +21,8 @@ namespace B2B_Procurement___Order_Management_Platform
             );
             builder.Services.AddDbContext<ProductDb>(options =>
                options.UseNpgsql(connectionString)
-           );
+            );
+          
 
             //// the Services
             builder.Services.AddScoped<IUserService, UserServices>();

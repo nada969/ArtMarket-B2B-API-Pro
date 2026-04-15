@@ -9,11 +9,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace B2B_Procurement___Order_Management_Platform.Migrations
+namespace B2B_Procurement___Order_Management_Platform.Migrations.UserDbMigrations
 {
     [DbContext(typeof(UserDb))]
-    [Migration("20260305100306_Identity03")]
-    partial class Identity03
+    [Migration("20260314171103_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,7 +25,7 @@ namespace B2B_Procurement___Order_Management_Platform.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("B2B_Procurement___Order_Management_Platform.Models.Identity_Authorization.User", b =>
+            modelBuilder.Entity("B2B_Procurement___Order_Management_Platform.Models.Identity.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

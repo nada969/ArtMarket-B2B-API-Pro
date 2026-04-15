@@ -30,13 +30,14 @@ namespace B2B_Procurement___Order_Management_Platform.Controllers
             return Ok(product);
         }
 
-        [HttpPost]
+        [HttpPost(Name =("ProductDetails"))]
         public IActionResult CreateProduct([FromBody] Product newproduct)
         {
             if (ModelState.IsValid)
             {
                 _productServices.CreateProduct(newproduct);
-                return Created();
+                string url = Url.Link("ProductDetails", new { index = newproduct.Id}) ;
+                return Created(url,newproduct);
             }
             return BadRequest(ModelState);
         }

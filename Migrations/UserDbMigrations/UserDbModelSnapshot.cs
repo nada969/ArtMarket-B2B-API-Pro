@@ -3,20 +3,17 @@ using System;
 using B2B_Procurement___Order_Management_Platform.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace B2B_Procurement___Order_Management_Platform.Migrations
+namespace B2B_Procurement___Order_Management_Platform.Migrations.UserDbMigrations
 {
     [DbContext(typeof(UserDb))]
-    [Migration("20260305095754_Identity02")]
-    partial class Identity02
+    partial class UserDbModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,7 +22,7 @@ namespace B2B_Procurement___Order_Management_Platform.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("B2B_Procurement___Order_Management_Platform.Models.Identity_Authorization.User", b =>
+            modelBuilder.Entity("B2B_Procurement___Order_Management_Platform.Models.Identity.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

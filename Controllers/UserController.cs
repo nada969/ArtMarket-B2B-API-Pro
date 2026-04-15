@@ -32,7 +32,7 @@ namespace B2B_Procurement___Order_Management_Platform.Controllers
             //List<User> users = _UserService.GetUsers().ToList();
             List<User> users = _UserService.GetUsers();
             return Ok(users);
-        }
+        } 
 
         [HttpGet]   //// api/User
         [Route("{id:int}")] ///// concate to get this url: api/User/{id}

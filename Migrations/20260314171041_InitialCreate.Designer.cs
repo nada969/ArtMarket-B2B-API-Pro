@@ -8,11 +8,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace B2B_Procurement___Order_Management_Platform.Migrations.ProductDbMigrations
+namespace B2B_Procurement___Order_Management_Platform.Migrations
 {
     [DbContext(typeof(ProductDb))]
-    [Migration("20260310000542_product")]
-    partial class product
+    [Migration("20260314171041_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -45,13 +45,54 @@ namespace B2B_Procurement___Order_Management_Platform.Migrations.ProductDbMigrat
                         .HasMaxLength(25)
                         .HasColumnType("character varying(25)");
 
-                    b.Property<string>("Supplier")
+                    b.Property<int>("Supplier_Id")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Supplier_Id");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("B2B_Procurement___Order_Management_Platform.Models.Products.Suppliers", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContactEmail")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Products");
+                    b.ToTable("suppliers");
+                });
+
+            modelBuilder.Entity("B2B_Procurement___Order_Management_Platform.Models.Products.Product", b =>
+                {
+                    b.HasOne("B2B_Procurement___Order_Management_Platform.Models.Products.Suppliers", "Supplier")
+                        .WithMany("Products")
+                        .HasForeignKey("Supplier_Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("B2B_Procurement___Order_Management_Platform.Models.Products.Suppliers", b =>
+                {
+                    b.Navigation("Products");
                 });
 #pragma warning restore 612, 618
         }
