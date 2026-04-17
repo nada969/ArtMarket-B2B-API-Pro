@@ -16,13 +16,10 @@ namespace B2B_Procurement___Order_Management_Platform.src.ArtMarket.API
             
             //// Data and Models
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");            
-            builder.Services.AddDbContext<UserDb>(options =>
+            builder.Services.AddDbContext<AppDb>(options =>
                 options.UseNpgsql(connectionString)
             );
-            builder.Services.AddDbContext<ProductDb>(options =>
-               options.UseNpgsql(connectionString)
-            );
-          
+                    
 
             //// the Services
             builder.Services.AddScoped<IUserService, UserServices>();

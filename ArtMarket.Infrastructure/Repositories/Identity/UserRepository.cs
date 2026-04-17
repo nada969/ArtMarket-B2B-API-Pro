@@ -11,8 +11,8 @@ namespace B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructu
     }
     public class UserRepository : IUserRepository
     {
-        private readonly UserDb _userDb;
-        public UserRepository(UserDb users)
+        private readonly AppDb _userDb;
+        public UserRepository(AppDb users)
         {
             _userDb = users;
         }

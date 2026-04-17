@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace B2B_Procurement___Order_Management_Platform.Migrations.UserDbMigrations
 {
-    [DbContext(typeof(UserDb))]
+    [DbContext(typeof(AppDb))]
     [Migration("20260314171103_InitialCreate")]
     partial class InitialCreate
     {
