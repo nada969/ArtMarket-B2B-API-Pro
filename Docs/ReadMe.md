@@ -120,13 +120,9 @@ For full setup instructions see [SETUP.md](SETUP.md).
 |----------|-------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, layers, ERD, auth flow |
 | [API_DOCS.md](API_DOCS.md) | Full endpoint reference |
+| [TIMELINE.md](TIMELINE.md) | Weekly task checklist and progress tracking |
 | [SETUP.md](SETUP.md) | Local dev, Docker, Cursor AI |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branching, commits, PR checklist |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [ROADMAP.md](ROADMAP.md) | Full future plans |
 
----
-
-## License
-
-MIT — see [LICENSE](LICENSE) 
