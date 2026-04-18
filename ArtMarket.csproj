@@ -21,4 +21,12 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ArtMarket.API\Controllers\" />
+    <Folder Include="ArtMarket.Application\DTOs\" />
+    <Folder Include="ArtMarket.Application\Services\" />
+    <Folder Include="ArtMarket.Infrastructure\Data\Migrations\" />
+    <Folder Include="ArtMarket.Infrastructure\Repositories\" />
+  </ItemGroup>
+
 </Project>
