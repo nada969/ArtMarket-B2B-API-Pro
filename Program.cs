@@ -14,17 +14,19 @@ namespace B2B_Procurement___Order_Management_Platform
             builder.Services.AddDbContext<AppDb>(options =>
                 options.UseNpgsql(connectionString)
             );
-                    
+
 
             ////// the Services
             //builder.Services.AddScoped<IUserService, UserServices>();
+            builder.Services.AddHealthChecks();
+            
 
             ///// the repository
             //builder.Services.AddScoped<IUserRepository, UserRepository>();
             //builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
             ////// the controller
-            //builder.Services.AddControllers();
+            builder.Services.AddControllers();
 
             //// OpenAPI && Swagger
             builder.Services.AddOpenApi();
@@ -43,8 +45,9 @@ namespace B2B_Procurement___Order_Management_Platform
 
             //app.UseAuthorization();
 
-            //app.MapControllers();
-            
+            app.MapControllers();
+            app.MapHealthChecks("/health");
+
             app.Run();
         }
     }
