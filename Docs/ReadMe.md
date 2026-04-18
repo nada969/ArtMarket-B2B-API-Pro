@@ -1,4 +1,4 @@
-# 🎨 ArtMarket
+# ArtMarket
 
 > A marketplace where local artists showcase and sell their work — buyers discover, inquire, and connect directly with the artist.
 
