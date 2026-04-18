@@ -29,7 +29,7 @@ This is what's built and working right now:
 1. Artist registers → status is `Pending`
 2. Admin reviews and approves (or rejects) the artist
 3. Approved artist can create and manage artwork listings
-4. Free tier: up to **5 listings**. Premium tier: **unlimited**
+4. Free tier: up to **9 listings**. Premium tier: **unlimited**
 
 ### Buyer Flow
 1. Buyer browses public artwork listings
@@ -87,7 +87,7 @@ This is what's built and working right now:
 | Layer | Technology |
 |-------|-----------|
 | Framework | ASP.NET Core 8 Web API |
-| Database | SQL Server + EF Core 8 |
+| Database | PostgreSQL Server + EF Core 8 |
 | Auth | ASP.NET Identity + JWT Bearer |
 | Email | SendGrid / SMTP |
 | Chatbot | OpenAI GPT-4o |
@@ -100,15 +100,14 @@ This is what's built and working right now:
 
 ```bash
 git clone https://github.com/your-org/artmarket.git
-cd artmarket
+cd ArtMarket
 dotnet restore
-cp src/ArtMarket.API/appsettings.Example.json src/ArtMarket.API/appsettings.Development.json
 # fill in your DB connection string, JWT secret, and API keys
-dotnet ef database update --project src/ArtMarket.Infrastructure --startup-project src/ArtMarket.API
-dotnet run --project src/ArtMarket.API
+dotnet ef database update --project ArtMarket.Infrastructure --startup-project ArtMarket.API
+dotnet run --project ArtMarket.API
 ```
 
-Swagger UI: `https://localhost:7001/swagger`  
+Swagger UI: `https://localhost:44356/swagger`  
 Default admin: `admin@artmarket.io` / `Admin@123!`
 
 For full setup instructions see [SETUP.md](SETUP.md).

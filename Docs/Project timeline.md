@@ -6,7 +6,7 @@
 ## 1. Foundation (Weeks 1–2)
 **~24 hrs · Goal:** Project compiles and connects to DB  
 
-- [ ] Restructure GitHub repo  
+- [x] Restructure GitHub repo  
 - [x] Create solution with 4 projects (API / Application / Domain / Infra)  
 - [x] Install EF Core + PostgreSQL  
 - [x] Create all entities + AppDbContext  
