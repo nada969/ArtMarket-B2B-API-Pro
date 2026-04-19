@@ -23,9 +23,10 @@ Ensure the following tools are installed before proceeding:
 
 | Tool | Version | Purpose | Download |
 |------|---------|---------|----------|
-| **.NET SDK** | 8.0+ | Build and run the API | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/8.0) |
-| **PostgreSQL Server** | Latest (18.x recommended) | Database | [postgresql.org](https://www.postgresql.org/download/) |
-| **EF Core CLI** | 8.0+ | Run migrations | `dotnet tool install -g dotnet-ef` |
+| **.NET SDK** | 10.0+ | Build and run the API | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0) |
+| **PostgreSQL** | 14+ | Database | [postgresql.org](https://www.postgresql.org/download/) |
+| **pgAdmin** | Any | PostgreSQL GUI client | [pgadmin.org](https://www.pgadmin.org/download/) |
+| **EF Core CLI** | 10.0+ | Run migrations | `dotnet tool install -g dotnet-ef` |
 | **Git** | Any | Clone the repo | [git-scm.com](https://git-scm.com/) |
 | **Docker Desktop** | 4.x+ | *(Optional)* Containerized run | [docker.com](https://www.docker.com/products/docker-desktop/) |
 | **Visual Studio 2022** | 17.8+ | *(Optional)* Full IDE | [visualstudio.microsoft.com](https://visualstudio.microsoft.com/) |
@@ -36,7 +37,7 @@ Ensure the following tools are installed before proceeding:
 
 ```bash
 dotnet --version
-# Expected output: 8.0.x
+# Expected output: 10.0.x
 ```
 
 ### Install EF Core CLI tools
@@ -44,7 +45,7 @@ dotnet --version
 ```bash
 dotnet tool install --global dotnet-ef
 dotnet ef --version
-# Expected output: Entity Framework Core .NET Command-line Tools 8.0.x
+# Expected output: Entity Framework Core .NET Command-line Tools 10.0.x
 ```
 
 ---
@@ -56,7 +57,7 @@ dotnet ef --version
 git clone https://github.com/nada969/ArtMarket-B2B-API-Pro.git
 
 # Navigate into the project
-cd artmarket
+cd ArtMarket-B2B-API-Pro
 
 # Restore all NuGet packages
 dotnet restore
@@ -66,22 +67,14 @@ dotnet restore
 
 ## 3. Configure appsettings & Environment Variables
 
-ArtMarket uses `appsettings.json` for non-sensitive config and **environment variables** (or `appsettings.Development.json`) for secrets.
+ArtMarket uses `appsettings.json` for configuration. Fill in your local values before running the project.
 
-### Step 1: Copy the example config
-
-```bash
-cp appsettings.json 
-```
-
-### Step 2: Edit `appsettings.Development.json`
-
-Open the file and fill in your local values:
+### Edit `appsettings.json`
 
 ```json
 {
-  "ConnectionStrings": { 
-    "DefaultConnection": "Host=localhost;Port=PortNumber;Database=YourDBName;Username=YourUserName;Password=YpurPassword"
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=DB_B2B;Username=postgres;Password=yourpassword"
   },
   "JwtSettings": {
     "SecretKey": "your-minimum-32-character-secret-key-here!!",
@@ -101,7 +94,7 @@ Open the file and fill in your local values:
     "Model": "gpt-4o"
   },
   "SubscriptionSettings": {
-    "FreeListingLimit": 9
+    "FreeListingLimit": 5
   },
   "Logging": {
     "LogLevel": {
@@ -112,37 +105,13 @@ Open the file and fill in your local values:
 }
 ```
 
-> ⚠️ **Never commit `appsettings.json` or any file containing secrets.** It is already listed in `.gitignore`.
+> ⚠️ **Never commit `appsettings.json` with real credentials.** Add it to `.gitignore` or use environment variables for secrets.
 
-### Connection String Variants
+### Connection String Format
 
-**PostgreSQL :**
+**PostgreSQL:**
 ```
-Host=localhost;Database=artmarketdb;Username=postgres;Password=yourpassword;
-```
-
-### Using .env instead
-
-If you prefer dotenv-style secrets, create a `.env` file in the repo root:
-
-```bash
-cp .env.example .env
-```
-
-Then populate it:
-
-```
-CONNECTIONSTRINGS__DEFAULTCONNECTION=Server=localhost\\SQLEXPRESS;Database=ArtMarketDb;Trusted_Connection=True;TrustServerCertificate=True;
-JWTSETTINGS__SECRETKEY=your-minimum-32-character-secret-key!!
-JWTSETTINGS__ISSUER=ArtMarketAPI
-JWTSETTINGS__AUDIENCE=ArtMarketClients
-JWTSETTINGS__EXPIRYMINUTES=60
-EMAILSETTINGS__SMTPHOST=smtp.sendgrid.net
-EMAILSETTINGS__SMTPPORT=587
-EMAILSETTINGS__SENDEREMAIL=noreply@yourdomain.com
-EMAILSETTINGS__APIKEY=your-sendgrid-api-key
-OPENAI__APIKEY=sk-your-openai-api-key
-OPENAI__MODEL=gpt-4o
+Host=localhost;Port=5432;Database=DB_B2B;Username=postgres;Password=yourpassword
 ```
 
 ---
@@ -203,64 +172,56 @@ dotnet ef migrations list \
 
 ## 5. Run the Project Locally
 
-### Run with .NET CLI
+### Run with Visual Studio (recommended)
+
+Press **F5** or click the ▶ Run button. The API starts via IIS Express at:
+
+```
+https://localhost:44356
+https://localhost:44356/swagger/index.html  ← Swagger UI
+```
+
+### Run with .NET CLI (terminal)
 
 ```bash
-dotnet run 
+cd ArtMarket.API
+dotnet run
 ```
 
-
-The API will start at:
+The API starts via Kestrel at:
 
 ```
-- (https://localhost:44356) — when running via IIS Express (Visual Studio)
-- (http://localhost:5112) — when running via `dotnet run` in terminal
+http://localhost:5112
+http://localhost:5112/swagger/index.html  ← Swagger UI
 ```
 
-Swagger UI (available in Development only):
-```
-https://localhost:44356/swagger/index.html
-```
-
-### Run with Hot Reload (recommended during development)
+### Run with Hot Reload
 
 ```bash
-dotnet watch run 
+cd ArtMarket.API
+dotnet watch run
 ```
 
 ### Run Tests
 
-> Test files are not set up yet — planned for v2.0.
-> See [ROADMAP.md](ROADMAP.md) for details.
+> ⚠️ Test projects are not set up yet — planned for v2.0. See [ROADMAP.md](ROADMAP.md) for details.
 
 Once test projects are added, tests will run with:
 
 ```bash
-# Run all tests
 dotnet test
-
-# Run with verbose output
-dotnet test --logger "console;verbosity=detailed"
-
-# Run only unit tests
-dotnet test tests/ArtMarket.UnitTests
-
-# Run only integration tests
-dotnet test tests/ArtMarket.IntegrationTests
 ```
 
 ---
 
 ## 6. Run with Docker
 
-### Prerequisites
+> ⚠️ Docker is not configured yet — planned for v2.0. See [ROADMAP.md](ROADMAP.md) for details.
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
-
-### Start all services with Docker Compose
+Once configured, the setup will use:
 
 ```bash
-# Start API + SQL Server in containers
+# Start API + PostgreSQL in containers
 docker-compose up --build
 
 # Run in detached (background) mode
@@ -276,51 +237,7 @@ docker-compose down
 docker-compose down -v
 ```
 
-### `docker-compose.yml` Overview
-
-```yaml
-version: '3.9'
-
-services:
-  artmarket-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "7001:8080"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ArtMarketDb;User Id=sa;Password=YourStrongPassword123!;TrustServerCertificate=True;
-      - JwtSettings__SecretKey=your-minimum-32-character-secret-key!!
-      - JwtSettings__Issuer=ArtMarketAPI
-      - JwtSettings__Audience=ArtMarketClients
-      - EmailSettings__SmtpHost=smtp.sendgrid.net
-      - EmailSettings__ApiKey=your-sendgrid-key
-      - OpenAI__ApiKey=sk-your-openai-key
-    depends_on:
-      - sqlserver
-
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=YourStrongPassword123!
-    ports:
-      - "1433:1433"
-    volumes:
-      - sqlserver-data:/var/opt/mssql
-
-volumes:
-  sqlserver-data:
-```
-
-### Access the API in Docker
-
-Once running, the API is available at:
-```
-http://localhost:7001
-http://localhost:7001/swagger
-```
+The `docker-compose.yml` will wire up the API container against a `postgres:16` container using the same connection string format as local development.
 
 ---
 
@@ -334,14 +251,14 @@ http://localhost:7001/swagger
 cursor .
 ```
 
-Or open Cursor and use **File → Open Folder** to select the `artmarket/` directory.
+Or open Cursor and use **File → Open Folder** to select the project directory.
 
 ### Recommended `.cursorrules` Setup
 
-Create a `.cursorrules` file in the project root to give Cursor context about the project:
+Create a `.cursorrules` file in the project root:
 
 ```
-You are an expert ASP.NET Core 8 developer working on ArtMarket, an online marketplace for local artists.
+You are an expert ASP.NET Core developer working on ArtMarket, an online marketplace for local artists.
 
 Architecture:
 - Clean layered architecture: Controllers → Services → Repositories → Database
@@ -358,31 +275,19 @@ Patterns & Conventions:
 - Return domain exceptions from services; controllers handle HTTP status codes
 - Use dependency injection everywhere; never use `new` for services
 
-Testing:
-- Unit tests use xUnit + Moq
-- Mock all dependencies at the service layer
-- Integration tests use WebApplicationFactory with an in-memory database
-
 When generating code, always include XML doc comments on public methods and classes.
 ```
 
 ### Useful Cursor AI Prompts
 
 ```
-# Generate a new feature end-to-end
-"Add a feature for artists to upload multiple images per artwork. 
+"Add a feature for artists to upload multiple images per artwork.
 Follow the existing pattern in ArtworkService and ArtworkRepository."
 
-# Debug an issue
-"Why might the artist approval email not be sending? 
+"Why might the artist approval email not be sending?
 Check EmailService and OrderController for the flow."
 
-# Write tests
-"Write xUnit unit tests for ArtworkService.CreateAsync() covering: 
-free-tier limit enforcement, successful creation, and unapproved artist rejection."
-
-# Generate a migration
-"I added a Tags property (List<string>) to the Artwork entity. 
+"I added a Tags property (List<string>) to the Artwork entity.
 What EF Core migration code should I write?"
 ```
 
@@ -390,22 +295,55 @@ What EF Core migration code should I write?"
 
 ## 8. Common Errors & Fixes
 
-### ❌ `Unable to connect to SQL Server`
+### ❌ Unable to connect to PostgreSQL
 
 **Error:**
 ```
-A network-related or instance-specific error occurred while establishing a connection to SQL Server.
+Failed to connect to 127.0.0.1:5432
+```
+or
+```
+FATAL: password authentication failed for user "postgres"
 ```
 
 **Fix:**
-- Verify SQL Server is running: check Windows Services or `docker ps`
-- Check the connection string in `appsettings.Development.json`
-- For SQL Express: use `Server=localhost\\SQLEXPRESS` (double backslash)
-- For Docker: ensure `sqlserver` container is healthy before the API starts
+- Open **pgAdmin** and check if the server is running — it shows a green icon if active
+- Or start it manually from Windows Services:
+  ```bash
+  net start postgresql-x64-16
+  ```
+- Verify your connection string in `appsettings.json` uses the correct format:
+  ```
+  Host=localhost;Port=5432;Database=DB_B2B;Username=postgres;Password=yourpassword
+  ```
+- Wrong password → open pgAdmin, right-click the `postgres` user → **Change Password**
+- For Docker: verify the `postgres` container is healthy before starting the API:
+  ```bash
+  docker ps
+  ```
 
 ---
 
-### ❌ `Migrations pending — database may not be up to date`
+### ❌ Connection string not found
+
+**Error:**
+```
+InvalidOperationException: Connection string 'DefaultConnection' not found.
+```
+
+**Fix:**
+- Make sure `appsettings.json` is inside `ArtMarket.API` — the startup project
+- Right-click `appsettings.json` in Solution Explorer → **Properties** → set `Copy to Output Directory` to `Copy if newer`
+- Verify the key name matches exactly — `"DefaultConnection"` in both `appsettings.json` and `Program.cs`
+- Add this temporary debug line at the top of `Program.cs` to confirm the file is being read:
+  ```csharp
+  Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
+  ```
+  If it prints `null` → the file is not being found at runtime
+
+---
+
+### ❌ Migrations pending — database not up to date
 
 **Error:**
 ```
@@ -415,27 +353,13 @@ There are pending model changes. Run dotnet ef database update.
 **Fix:**
 ```bash
 dotnet ef database update \
-  --project src/ArtMarket.Infrastructure \
-  --startup-project src/ArtMarket.API
+  --project ArtMarket.Infrastructure \
+  --startup-project ArtMarket.API
 ```
 
 ---
 
-### ❌ `IDX10503: Signature validation failed`
-
-**Error:**
-```
-Microsoft.IdentityModel.Tokens.SecurityTokenSignatureKeyNotFoundException
-```
-
-**Fix:**
-- Your `JwtSettings__SecretKey` in `appsettings.Development.json` must be **at least 32 characters**
-- Ensure the same key is used for both token generation and validation
-- Never use the example key in production
-
----
-
-### ❌ `No migration configuration type was found`
+### ❌ No migration configuration type was found
 
 **Error:**
 ```
@@ -443,19 +367,33 @@ Your startup project 'ArtMarket.API' doesn't reference Microsoft.EntityFramework
 ```
 
 **Fix:**
-Ensure `ArtMarket.Infrastructure` has the EF Core Design package:
-
 ```bash
-dotnet add src/ArtMarket.Infrastructure package Microsoft.EntityFrameworkCore.Design
+dotnet add ArtMarket.Infrastructure package Microsoft.EntityFrameworkCore.Design
 ```
 
 ---
 
-### ❌ `CORS error from browser client`
+### ❌ JWT signature validation failed
 
 **Error:**
 ```
-Access to XMLHttpRequest at 'https://localhost:7001' from origin 'http://localhost:3000' has been blocked by CORS policy.
+Microsoft.IdentityModel.Tokens.SecurityTokenSignatureKeyNotFoundException
+```
+
+**Fix:**
+- `JwtSettings__SecretKey` in `appsettings.json` must be **at least 32 characters**
+- Make sure the same key is used for both token generation and validation
+- Never hardcode or shorten the key
+
+---
+
+### ❌ CORS error from browser client
+
+**Error:**
+```
+Access to XMLHttpRequest at 'https://localhost:44356' (IIS Express)
+or 'http://localhost:5112' (Kestrel)
+from origin 'http://localhost:3000' has been blocked by CORS policy.
 ```
 
 **Fix:**
@@ -473,14 +411,14 @@ builder.Services.AddCors(options =>
 
 ---
 
-### ❌ `OpenAI API call failed: 429 Too Many Requests`
+### ❌ OpenAI API call failed: 429 Too Many Requests
 
 **Fix:**
-- Check your OpenAI API usage limits at [platform.openai.com/usage](https://platform.openai.com/usage)
-- For local development, you can mock the chatbot service:
+- Check your usage limits at [platform.openai.com/usage](https://platform.openai.com/usage)
+- For local development, mock the chatbot service to avoid consuming API credits:
 
 ```csharp
-// In Program.cs, add a mock for development
+// Program.cs — swap real service for mock in Development
 if (app.Environment.IsDevelopment())
 {
     builder.Services.AddScoped<IChatbotService, MockChatbotService>();
@@ -489,15 +427,15 @@ if (app.Environment.IsDevelopment())
 
 ---
 
-### ❌ `dotnet watch` not detecting file changes
+### ❌ dotnet watch not detecting file changes
 
 **Fix:**
 ```bash
-# Ensure you're running from the correct directory
-cd artmarket
-dotnet watch run --project src/ArtMarket.API
+# Run from the folder containing the .csproj
+cd ArtMarket.API
+dotnet watch run
 
-# If still not working, clear build artifacts
+# If still not working, clear build artifacts first
 dotnet clean
-dotnet watch run --project src/ArtMarket.API
+dotnet watch run
 ```
