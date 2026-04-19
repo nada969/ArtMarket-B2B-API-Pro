@@ -206,15 +206,15 @@ dotnet ef migrations list \
 ### Run with .NET CLI
 
 ```bash
-dotnet run --project ,ArtMarket.API
+dotnet run 
 ```
 
 
 The API will start at:
 
 ```
-- `https://localhost:44356` — when running via IIS Express (Visual Studio)
-- `http://localhost:5112` — when running via `dotnet run` in terminal
+- (https://localhost:44356) — when running via IIS Express (Visual Studio)
+- (http://localhost:5112) — when running via `dotnet run` in terminal
 ```
 
 Swagger UI (available in Development only):
