@@ -24,7 +24,7 @@ Ensure the following tools are installed before proceeding:
 | Tool | Version | Purpose | Download |
 |------|---------|---------|----------|
 | **.NET SDK** | 8.0+ | Build and run the API | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/8.0) |
-| **SQL Server** | 2019+ or LocalDB | Database | [microsoft.com](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) |
+| **PostgreSQL Server** | Latest (18.x recommended) | Database | [postgresql.org](https://www.postgresql.org/download/) |
 | **EF Core CLI** | 8.0+ | Run migrations | `dotnet tool install -g dotnet-ef` |
 | **Git** | Any | Clone the repo | [git-scm.com](https://git-scm.com/) |
 | **Docker Desktop** | 4.x+ | *(Optional)* Containerized run | [docker.com](https://www.docker.com/products/docker-desktop/) |
@@ -53,20 +53,13 @@ dotnet ef --version
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/artmarket.git
+git clone https://github.com/nada969/ArtMarket-B2B-API-Pro.git
 
 # Navigate into the project
 cd artmarket
 
 # Restore all NuGet packages
 dotnet restore
-
-# Explore the solution structure
-ls src/
-# ArtMarket.API/
-# ArtMarket.Application/
-# ArtMarket.Domain/
-# ArtMarket.Infrastructure/
 ```
 
 ---
@@ -78,7 +71,7 @@ ArtMarket uses `appsettings.json` for non-sensitive config and **environment var
 ### Step 1: Copy the example config
 
 ```bash
-cp src/ArtMarket.API/appsettings.Example.json src/ArtMarket.API/appsettings.Development.json
+cp appsettings.json 
 ```
 
 ### Step 2: Edit `appsettings.Development.json`
@@ -87,8 +80,8 @@ Open the file and fill in your local values:
 
 ```json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=ArtMarketDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  "ConnectionStrings": { 
+    "DefaultConnection": "Host=localhost;Port=PortNumber;Database=YourDBName;Username=YourUserName;Password=YpurPassword"
   },
   "JwtSettings": {
     "SecretKey": "your-minimum-32-character-secret-key-here!!",
@@ -108,7 +101,7 @@ Open the file and fill in your local values:
     "Model": "gpt-4o"
   },
   "SubscriptionSettings": {
-    "FreeListingLimit": 5
+    "FreeListingLimit": 9
   },
   "Logging": {
     "LogLevel": {
@@ -119,21 +112,11 @@ Open the file and fill in your local values:
 }
 ```
 
-> ⚠️ **Never commit `appsettings.Development.json` or any file containing secrets.** It is already listed in `.gitignore`.
+> ⚠️ **Never commit `appsettings.json` or any file containing secrets.** It is already listed in `.gitignore`.
 
 ### Connection String Variants
 
-**SQL Server Express (LocalDB):**
-```
-Server=(localdb)\\mssqllocaldb;Database=ArtMarketDb;Trusted_Connection=True;
-```
-
-**SQL Server with credentials:**
-```
-Server=localhost;Database=ArtMarketDb;User Id=sa;Password=YourPassword;TrustServerCertificate=True;
-```
-
-**PostgreSQL (if configured):**
+**PostgreSQL :**
 ```
 Host=localhost;Database=artmarketdb;Username=postgres;Password=yourpassword;
 ```
@@ -170,8 +153,8 @@ OPENAI__MODEL=gpt-4o
 
 ```bash
 dotnet ef database update \
-  --project src/ArtMarket.Infrastructure \
-  --startup-project src/ArtMarket.API
+  --project ArtMarket.Infrastructure \
+  --startup-project ArtMarket.API
 ```
 
 This creates the database and applies all migrations, including the seed for the default admin user.
@@ -189,9 +172,9 @@ This creates the database and applies all migrations, including the seed for the
 
 ```bash
 dotnet ef migrations add YourMigrationName \
-  --project src/ArtMarket.Infrastructure \
-  --startup-project src/ArtMarket.API \
-  --output-dir Data/Migrations
+  --project ArtMarket.Infrastructure \
+  --startup-project ArtMarket.API \
+  --output-dir Migrations
 ```
 
 ### Roll back the last migration
@@ -199,21 +182,21 @@ dotnet ef migrations add YourMigrationName \
 ```bash
 # Revert database to the previous migration
 dotnet ef database update PreviousMigrationName \
-  --project src/ArtMarket.Infrastructure \
-  --startup-project src/ArtMarket.API
+  --project ArtMarket.Infrastructure \
+  --startup-project ArtMarket.API
 
 # Remove the migration file
 dotnet ef migrations remove \
-  --project src/ArtMarket.Infrastructure \
-  --startup-project src/ArtMarket.API
+  --project ArtMarket.Infrastructure \
+  --startup-project ArtMarket.API
 ```
 
 ### List all applied migrations
 
 ```bash
 dotnet ef migrations list \
-  --project src/ArtMarket.Infrastructure \
-  --startup-project src/ArtMarket.API
+  --project ArtMarket.Infrastructure \
+  --startup-project ArtMarket.API
 ```
 
 ---
@@ -223,28 +206,34 @@ dotnet ef migrations list \
 ### Run with .NET CLI
 
 ```bash
-dotnet run --project src/ArtMarket.API
+dotnet run --project ,ArtMarket.API
 ```
+
 
 The API will start at:
 
 ```
-https://localhost:7001
-http://localhost:5001
+- `https://localhost:44356` — when running via IIS Express (Visual Studio)
+- `http://localhost:5112` — when running via `dotnet run` in terminal
 ```
 
 Swagger UI (available in Development only):
 ```
-https://localhost:7001/swagger
+https://localhost:44356/swagger/index.html
 ```
 
 ### Run with Hot Reload (recommended during development)
 
 ```bash
-dotnet watch run --project src/ArtMarket.API
+dotnet watch run 
 ```
 
 ### Run Tests
+
+> Test files are not set up yet — planned for v2.0.
+> See [ROADMAP.md](ROADMAP.md) for details.
+
+Once test projects are added, tests will run with:
 
 ```bash
 # Run all tests
