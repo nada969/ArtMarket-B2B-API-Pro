@@ -204,7 +204,7 @@ dotnet watch run
 
 ### Run Tests
 
-> ⚠️ Test projects are not set up yet — planned for v2.0. See [ROADMAP.md](ROADMAP.md) for details.
+> Test projects are not set up yet — planned for v2.0. See [ROADMAP.md](ROADMAP.md) for details.
 
 Once test projects are added, tests will run with:
 
@@ -216,7 +216,7 @@ dotnet test
 
 ## 6. Run with Docker
 
-> ⚠️ Docker is not configured yet — planned for v2.0. See [ROADMAP.md](ROADMAP.md) for details.
+> Docker is not configured yet — planned for v2.0. See [ROADMAP.md](ROADMAP.md) for details.
 
 Once configured, the setup will use:
 
@@ -332,7 +332,6 @@ InvalidOperationException: Connection string 'DefaultConnection' not found.
 ```
 
 **Fix:**
-- Make sure `appsettings.json` is inside `ArtMarket.API` — the startup project
 - Right-click `appsettings.json` in Solution Explorer → **Properties** → set `Copy to Output Directory` to `Copy if newer`
 - Verify the key name matches exactly — `"DefaultConnection"` in both `appsettings.json` and `Program.cs`
 - Add this temporary debug line at the top of `Program.cs` to confirm the file is being read:
