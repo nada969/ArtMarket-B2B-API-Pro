@@ -23,16 +23,15 @@
 # 1. Fork the repository on GitHub (click "Fork" on the repo page)
 
 # 2. Clone your fork
-git clone https://github.com/YOUR-USERNAME/artmarket.git
-cd artmarket
+git clone https://github.com/YOUR_USERNAME/ArtMarket-B2B-API-Pro.git
 
 # 3. Add the upstream remote so you can pull future changes
-git remote add upstream https://github.com/your-org/artmarket.git
+git remote add upstream https://github.com/nada969/ArtMarket-B2B-API-Pro.git
 
 # 4. Verify remotes
 git remote -v
-# origin    https://github.com/YOUR-USERNAME/artmarket.git (fetch)
-# upstream  https://github.com/your-org/artmarket.git (fetch)
+#origin https://github.com/YOUR_USERNAME/ArtMarket-B2B-API-Pro.git (fetch)
+#upstream https://github.com/nada969/ArtMarket-B2B-API-Pro.git (fetch)
 ```
 
 ### Keep Your Fork in Sync
@@ -135,43 +134,7 @@ test(orders): add unit tests for OrderService status transition rules
 
 ---
 
-## 4. Pull Request Checklist
-
-Before opening a PR, verify every item on this list:
-
-### Code Quality
-
-- [ ] All new public classes and methods have XML doc comments (`/// <summary>`)
-- [ ] No TODO comments left in new code (open a GitHub issue instead)
-- [ ] No commented-out code in the PR
-- [ ] No hardcoded strings, secrets, or magic numbers — use constants or config
-- [ ] No business logic in controllers (delegate to services)
-- [ ] No raw `DbContext` calls outside of repositories
-
-### Tests
-
-- [ ] All new service methods have corresponding unit tests in `ArtMarket.UnitTests`
-- [ ] All new endpoints have at least one integration test in `ArtMarket.IntegrationTests`
-- [ ] All existing tests pass: `dotnet test`
-- [ ] New tests are isolated — they do not depend on test execution order
-
-### Build & Formatting
-
-- [ ] Project builds with no warnings: `dotnet build --no-restore`
-- [ ] No new NuGet packages added without discussion in the PR description
-- [ ] `appsettings.Development.json` or `.env` files are NOT committed
-- [ ] `appsettings.Example.json` is updated if new config keys were added
-
-### PR Description
-
-- [ ] Title follows commit format: `feat(scope): description`
-- [ ] Description explains *what* changed and *why*
-- [ ] Relevant GitHub issues are linked (e.g., `Closes #42`)
-- [ ] Breaking changes (if any) are clearly documented
-
----
-
-## 5. Code Style Guidelines
+## 4. Code Style Guidelines
 
 ArtMarket follows standard C# and ASP.NET Core conventions. Refer to the [Microsoft C# Coding Conventions](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions).
 
@@ -276,7 +239,7 @@ if (currentCount >= limit)
 
 ---
 
-## 6. Reporting Issues
+## 7. Reporting Issues
 
 ### Bug Reports
 
@@ -284,7 +247,7 @@ Please include:
 1. Steps to reproduce the issue
 2. Expected behavior
 3. Actual behavior
-4. Environment details (.NET version, OS, SQL Server version)
+4. Environment details (.NET version, OS, PostgreSQL Server version)
 5. Relevant logs or stack traces
 
 Use the **Bug Report** issue template on GitHub.
