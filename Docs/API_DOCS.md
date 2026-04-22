@@ -1,7 +1,7 @@
 # Art Marketplace — API Documentation
 
 > **Version:** 1.0.0  
-> **Base URL:** `https://api.artmarketplace.com/api`  
+> **Base URL:** `https://api.ArtMarket.com/api`  
 > **Auth:** Bearer JWT Token (all protected routes require `Authorization: Bearer <token>`)
 
 ---
@@ -24,16 +24,16 @@
 ## Architecture Overview
 
 ```
-ArtMarketplace/
-├── ArtMarketplace.API/                  # Presentation layer (Controllers, Middleware)
-├── ArtMarketplace.Application/          # Business logic (Services, DTOs, Interfaces)
-├── ArtMarketplace.Domain/               # Core entities & Enums
-└── ArtMarketplace.Infrastructure/       # DB, Repositories, Email
+ArtMarket/
+├── ArtMarket.API/                  # Presentation layer (Controllers, Middleware)
+├── ArtMarket.Application/          # Business logic (Services, DTOs, Interfaces)
+├── ArtMarket.Domain/               # Core entities & Enums
+└── ArtMarket.Infrastructure/       # DB, Repositories, Email
 ```
 
 **Pattern:** Clean Architecture (Domain → Application → Infrastructure → API)  
 **Auth:** JWT Bearer Tokens  
-**Database:** SQL Server + Entity Framework Core  
+**Database:** PostgreSQL Server + Entity Framework Core  
 **Email:** Triggered server-side on status changes (not by client endpoints)
 
 ---
@@ -52,110 +52,6 @@ Artist             (1) ──── (0..n) Artworks
 Artist             (1) ──── (0..n) Orders       [incoming orders — denormalized FK]
 Buyer              (1) ──── (0..n) Orders       [placed orders]
 Artwork            (1) ──── (0..n) Orders       [V1: direct FK on order]
-```
-
-### C# Domain Entities (from source)
-
-**User** — extends `IdentityUser` (handles email, password hash, claims via ASP.NET Identity)
-```csharp
-public class User : IdentityUser
-{
-    public UserRole Role { get; set; }      // Enum: Artist | Buyer | Admin
-    public DateTime CreatedAt { get; set; }
-    public Buyer? Buyer { get; set; }       // null if role is Artist
-    public Artist? Artist { get; set; }     // null if role is Buyer
-}
-```
-
-**Artist** — profile entity, linked 1-to-1 with User
-```csharp
-public class Artist
-{
-    public string ArtistId { get; set; }
-    public string ArtistDisplayName { get; set; }
-    public string Bio { get; set; }
-    public Status Status { get; set; }      // Enum: e.g. Active | Suspended | Pending
-    public string ProfileImage { get; set; }
-    // FK to User
-    public string UserId { get; set; }
-    public User User { get; set; }
-    // Navigation
-    public Subscription? Subscription { get; set; }
-    public ICollection<Artwork> Artworks { get; set; }
-    public ICollection<Order> Orders { get; set; }
-}
-```
-
-**Buyer** — profile entity, linked 1-to-1 with User
-```csharp
-public class Buyer
-{
-    public string BuyerId { get; set; }
-    public string BuyerDisplayName { get; set; }
-    // FK to User
-    public string UserId { get; set; }
-    public User User { get; set; }
-    // Navigation
-    public ICollection<Order> Orders { get; set; }
-}
-```
-
-**Artwork** — belongs to Artist, directly referenced by Orders in V1
-```csharp
-public class Artwork
-{
-    public string ArtId { get; set; }
-    public string Title { get; set; }
-    public string Description { get; set; }
-    public double Price { get; set; }
-    public bool IsAvailable { get; set; }   // true = can be ordered, false = sold/hidden
-    public string ImageUrl { get; set; }
-    public DateTime CreatedAt { get; set; }
-    // FK
-    [ForeignKey("Artist")]
-    public string ArtistId { get; set; }
-    public Artist Artist { get; set; }
-    // Navigation
-    public ICollection<Order> Orders { get; set; }
-}
-```
-
-**Order** — V1: holds direct FKs to Artwork, Buyer, and Artist
-```csharp
-public class Order
-{
-    public string OrderId { get; set; }
-    public Status Status { get; set; }      // Enum: Pending | Approved | Declined | Cancelled
-    // FKs
-    [ForeignKey("ArtWork")]
-    public string ArtId { get; set; }
-    public Artwork ArtWork { get; set; }
-
-    [ForeignKey("Buyer")]
-    public string BuyerId { get; set; }
-    public Buyer Buyer { get; set; }
-
-    [ForeignKey("Artist")]
-    public string ArtistId { get; set; }    // denormalized from ArtWork.ArtistId for query convenience
-    public Artist Artist { get; set; }
-}
-```
-
-> ⚠️ **Note on `ArtistId` in Order:** It is derived from `ArtWork.ArtistId` and must be set on creation. This denormalization is acceptable in V1 — it makes `GET /orders?artist_id=x` a simple filter without a join. In V2 with `OrderItems`, this field would be removed.
-
-**Subscription** — belongs to Artist, tracks platform access tier
-```csharp
-public class Subscription
-{
-    public string SubscriptionId { get; set; }
-    public SubscriptionTier Tier { get; set; }  // Enum: Basic | Pro
-    public bool IsActive { get; set; }           // true = currently valid
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    // FK
-    public string ArtistId { get; set; }
-    public Artist Artist { get; set; }
-}
 ```
 
 ---
