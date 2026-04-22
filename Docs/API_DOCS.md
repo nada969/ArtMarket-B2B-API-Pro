@@ -1,137 +1,200 @@
-# API_DOCS.md — ArtMarket API Reference
+# Art Marketplace — API Documentation
 
-> Full reference for all ArtMarket API endpoints. For authentication setup, see the [Auth section](#authentication).
+> **Version:** 1.0.0  
+> **Base URL:** `https://api.artmarketplace.com/api`  
+> **Auth:** Bearer JWT Token (all protected routes require `Authorization: Bearer <token>`)
 
 ---
 
 ## Table of Contents
 
-1. [Base URL & Versioning](#1-base-url--versioning)
-2. [Authentication](#2-authentication)
-3. [Error Format](#3-error-format)
-4. [Auth Endpoints](#4-auth-endpoints)
-5. [Admin Endpoints](#5-admin-endpoints)
-6. [Artist Endpoints](#6-artist-endpoints)
-7. [Artwork Endpoints](#7-artwork-endpoints)
-8. [Buyer Endpoints](#8-buyer-endpoints)
-9. [Order Endpoints](#9-order-endpoints)
-10. [Chatbot Endpoints](#10-chatbot-endpoints)
+1. [Architecture Overview](#architecture-overview)
+2. [Data Model](#data-model)
+3. [Authentication](#authentication)
+4. [Users & Profiles](#users--profiles)
+5. [Artworks](#artworks)
+6. [Orders](#orders)
+7. [Subscriptions](#subscriptions)
+8. [Admin](#admin)
+9. [Error Handling](#error-handling)
+10. [Design Decisions & Reasoning](#design-decisions--reasoning)
 
 ---
 
-## 1. Base URL & Versioning
+## Architecture Overview
 
 ```
-Base URL:    https://api.artmarket.io/api/v1
-Dev URL:     https://localhost:7001/api/v1
+ArtMarketplace/
+├── ArtMarketplace.API/                  # Presentation layer (Controllers, Middleware)
+├── ArtMarketplace.Application/          # Business logic (Services, DTOs, Interfaces)
+├── ArtMarketplace.Domain/               # Core entities & Enums
+└── ArtMarketplace.Infrastructure/       # DB, Repositories, Email
 ```
 
-All endpoints are versioned under `/api/v1/`. The version is included in the URL path to allow non-breaking evolution.
+**Pattern:** Clean Architecture (Domain → Application → Infrastructure → API)  
+**Auth:** JWT Bearer Tokens  
+**Database:** SQL Server + Entity Framework Core  
+**Email:** Triggered server-side on status changes (not by client endpoints)
 
 ---
 
-## 2. Authentication
+## Data Model
 
-ArtMarket uses **JWT Bearer Token** authentication. All protected endpoints require the following header:
+> **V1 decision:** One order = one artwork directly. No `OrderItems` table yet. Designed so migration to multi-item orders requires only an internal model change — no endpoint changes.
+
+### Entity Relationship Diagram
 
 ```
-Authorization: Bearer <your_jwt_token>
+User (IdentityUser) (1) ──── (0..1) Artist
+User (IdentityUser) (1) ──── (0..1) Buyer
+Artist             (1) ──── (0..1) Subscription
+Artist             (1) ──── (0..n) Artworks
+Artist             (1) ──── (0..n) Orders       [incoming orders — denormalized FK]
+Buyer              (1) ──── (0..n) Orders       [placed orders]
+Artwork            (1) ──── (0..n) Orders       [V1: direct FK on order]
 ```
 
-Obtain a token by calling `POST /api/v1/auth/login`. Tokens expire after the configured duration (default: 60 minutes).
+### C# Domain Entities (from source)
 
-### Access Matrix
-
-| Role | Prefix | Notes |
-|------|--------|-------|
-| `Public` | No token needed | Browse artworks, artist profiles |
-| `Buyer` | Any authenticated non-artist user | Place orders, use chatbot |
-| `Artist` | Artists with `Status = Approved` | Manage listings, view received orders |
-| `Admin` | Platform administrators | Full access |
-
----
-
-## 3. Error Format
-
-All errors return a consistent JSON structure:
-
-```json
+**User** — extends `IdentityUser` (handles email, password hash, claims via ASP.NET Identity)
+```csharp
+public class User : IdentityUser
 {
-  "statusCode": 400,
-  "message": "Validation failed",
-  "errors": [
-    "Title is required",
-    "Price must be greater than 0"
-  ],
-  "traceId": "00-4af6...abc-01"
+    public UserRole Role { get; set; }      // Enum: Artist | Buyer | Admin
+    public DateTime CreatedAt { get; set; }
+    public Buyer? Buyer { get; set; }       // null if role is Artist
+    public Artist? Artist { get; set; }     // null if role is Buyer
 }
 ```
 
-### Common Status Codes
+**Artist** — profile entity, linked 1-to-1 with User
+```csharp
+public class Artist
+{
+    public string ArtistId { get; set; }
+    public string ArtistDisplayName { get; set; }
+    public string Bio { get; set; }
+    public Status Status { get; set; }      // Enum: e.g. Active | Suspended | Pending
+    public string ProfileImage { get; set; }
+    // FK to User
+    public string UserId { get; set; }
+    public User User { get; set; }
+    // Navigation
+    public Subscription? Subscription { get; set; }
+    public ICollection<Artwork> Artworks { get; set; }
+    public ICollection<Order> Orders { get; set; }
+}
+```
 
-| Code | Meaning |
-|------|---------|
-| `200` | OK |
-| `201` | Created |
-| `204` | No Content |
-| `400` | Bad Request — validation error |
-| `401` | Unauthorized — missing or invalid token |
-| `403` | Forbidden — authenticated but lacks permission |
-| `404` | Not Found |
-| `409` | Conflict — e.g., duplicate email |
-| `422` | Unprocessable — business rule violation (e.g., listing limit reached) |
-| `500` | Internal Server Error |
+**Buyer** — profile entity, linked 1-to-1 with User
+```csharp
+public class Buyer
+{
+    public string BuyerId { get; set; }
+    public string BuyerDisplayName { get; set; }
+    // FK to User
+    public string UserId { get; set; }
+    public User User { get; set; }
+    // Navigation
+    public ICollection<Order> Orders { get; set; }
+}
+```
+
+**Artwork** — belongs to Artist, directly referenced by Orders in V1
+```csharp
+public class Artwork
+{
+    public string ArtId { get; set; }
+    public string Title { get; set; }
+    public string Description { get; set; }
+    public double Price { get; set; }
+    public bool IsAvailable { get; set; }   // true = can be ordered, false = sold/hidden
+    public string ImageUrl { get; set; }
+    public DateTime CreatedAt { get; set; }
+    // FK
+    [ForeignKey("Artist")]
+    public string ArtistId { get; set; }
+    public Artist Artist { get; set; }
+    // Navigation
+    public ICollection<Order> Orders { get; set; }
+}
+```
+
+**Order** — V1: holds direct FKs to Artwork, Buyer, and Artist
+```csharp
+public class Order
+{
+    public string OrderId { get; set; }
+    public Status Status { get; set; }      // Enum: Pending | Approved | Declined | Cancelled
+    // FKs
+    [ForeignKey("ArtWork")]
+    public string ArtId { get; set; }
+    public Artwork ArtWork { get; set; }
+
+    [ForeignKey("Buyer")]
+    public string BuyerId { get; set; }
+    public Buyer Buyer { get; set; }
+
+    [ForeignKey("Artist")]
+    public string ArtistId { get; set; }    // denormalized from ArtWork.ArtistId for query convenience
+    public Artist Artist { get; set; }
+}
+```
+
+> ⚠️ **Note on `ArtistId` in Order:** It is derived from `ArtWork.ArtistId` and must be set on creation. This denormalization is acceptable in V1 — it makes `GET /orders?artist_id=x` a simple filter without a join. In V2 with `OrderItems`, this field would be removed.
+
+**Subscription** — belongs to Artist, tracks platform access tier
+```csharp
+public class Subscription
+{
+    public string SubscriptionId { get; set; }
+    public SubscriptionTier Tier { get; set; }  // Enum: Basic | Pro
+    public bool IsActive { get; set; }           // true = currently valid
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    // FK
+    public string ArtistId { get; set; }
+    public Artist Artist { get; set; }
+}
+```
 
 ---
 
-## 4. Auth Endpoints
+## Authentication
 
-### Register
+All auth endpoints are public (no token required).
 
-**POST** `/api/v1/auth/register`
+### POST `/auth/register`
 
-Creates a new user account. Defaults to `Buyer` role unless `"role": "Artist"` is specified.
-
-**Access:** Public
+Register a new user (artist or buyer).
 
 **Request Body:**
 ```json
 {
-  "displayName": "Layla Hassan",
-  "email": "layla@example.com",
+  "email": "user@example.com",
   "password": "SecurePass123!",
-  "role": "Artist"
+  "role": "buyer"
 }
 ```
 
 **Response `201 Created`:**
 ```json
 {
-  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "displayName": "Layla Hassan",
-  "email": "layla@example.com",
-  "role": "Artist",
-  "artistStatus": "Pending",
-  "message": "Registration successful. Your artist account is pending admin approval."
+  "id": "uuid",
+  "email": "user@example.com",
+  "role": "buyer",
+  "createdAt": "2025-01-01T00:00:00Z"
 }
 ```
 
-**Status Codes:** `201`, `400`, `409`
-
 ---
 
-### Login
-
-**POST** `/api/v1/auth/login`
-
-Authenticates a user and returns a JWT token.
-
-**Access:** Public
+### POST `/auth/login`
 
 **Request Body:**
 ```json
 {
-  "email": "layla@example.com",
+  "email": "user@example.com",
   "password": "SecurePass123!"
 }
 ```
@@ -139,736 +202,505 @@ Authenticates a user and returns a JWT token.
 **Response `200 OK`:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresAt": "2025-01-15T15:00:00Z",
-  "user": {
-    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "displayName": "Layla Hassan",
-    "email": "layla@example.com",
-    "role": "Artist"
-  }
+  "accessToken": "eyJhbGci...",
+  "refreshToken": "abc123...",
+  "expiresIn": 3600
 }
 ```
 
-**Status Codes:** `200`, `400`, `401`
+---
+
+### POST `/auth/logout`
+
+Invalidates refresh token. Requires auth.
+
+**Response `204 No Content`**
 
 ---
 
-### Refresh Token
+### POST `/auth/password/forgot`
 
-**POST** `/api/v1/auth/refresh`
+Sends password reset email.
 
-Issues a new JWT token using a valid (non-expired) existing token.
+**Request Body:**
+```json
+{ "email": "user@example.com" }
+```
 
-**Access:** Any authenticated user
+**Response `200 OK`:**
+```json
+{ "message": "If this email exists, a reset link has been sent." }
+```
+
+---
+
+### POST `/auth/password/reset`
 
 **Request Body:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "token": "reset-token-from-email",
+  "newPassword": "NewSecurePass123!"
 }
 ```
 
-**Response `200 OK`:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...(new)...",
-  "expiresAt": "2025-01-15T16:00:00Z"
-}
-```
-
-**Status Codes:** `200`, `401`
+**Response `204 No Content`**
 
 ---
 
-### Get Current User
+## Users & Profiles
 
-**GET** `/api/v1/auth/me`
+### GET `/users/me` 🔒
 
-Returns the profile of the currently authenticated user.
+Returns the current authenticated user with their profile (Artist or Buyer depending on role).
 
-**Access:** Any authenticated user
-
-**Response `200 OK`:**
+**Response `200 OK` (Artist):**
 ```json
 {
-  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "displayName": "Layla Hassan",
-  "email": "layla@example.com",
+  "id": "aspnet-identity-id",
+  "email": "artist@example.com",
   "role": "Artist",
-  "artistStatus": "Approved"
-}
-```
-
-**Status Codes:** `200`, `401`
-
----
-
-## 5. Admin Endpoints
-
-All admin endpoints require `Authorization: Bearer <admin_token>`.
-
-### List Pending Artists
-
-**GET** `/api/v1/admin/artists/pending`
-
-Returns all artist accounts awaiting approval.
-
-**Access:** Admin only
-
-**Response `200 OK`:**
-```json
-[
-  {
-    "id": "9c84be12-1a22-4f55-9d14-adf123456789",
-    "displayName": "Omar Farouk",
-    "email": "omar@example.com",
-    "bio": "Watercolor artist from Cairo.",
-    "registeredAt": "2025-01-10T09:00:00Z"
+  "createdAt": "2025-01-01T00:00:00Z",
+  "profile": {
+    "artistId": "uuid",
+    "displayName": "Ahmed Hassan",
+    "bio": "Contemporary digital artist",
+    "profileImage": "https://cdn.example.com/images/ahmed.jpg",
+    "status": "Active"
   }
-]
-```
-
-**Status Codes:** `200`, `401`, `403`
-
----
-
-### Approve Artist
-
-**POST** `/api/v1/admin/artists/{artistId}/approve`
-
-Approves a pending artist. Sends an approval email to the artist.
-
-**Access:** Admin only
-
-**Response `200 OK`:**
-```json
-{
-  "artistId": "9c84be12-1a22-4f55-9d14-adf123456789",
-  "status": "Approved",
-  "message": "Artist has been approved and notified by email."
 }
 ```
 
-**Status Codes:** `200`, `401`, `403`, `404`, `409`
-
----
-
-### Reject Artist
-
-**POST** `/api/v1/admin/artists/{artistId}/reject`
-
-Rejects a pending artist registration.
-
-**Access:** Admin only
-
-**Request Body:**
+**Response `200 OK` (Buyer):**
 ```json
 {
-  "reason": "Profile information is incomplete. Please reapply with a full bio and portfolio."
-}
-```
-
-**Response `200 OK`:**
-```json
-{
-  "artistId": "9c84be12-1a22-4f55-9d14-adf123456789",
-  "status": "Rejected",
-  "message": "Artist has been rejected and notified."
-}
-```
-
-**Status Codes:** `200`, `400`, `401`, `403`, `404`
-
----
-
-### List All Users
-
-**GET** `/api/v1/admin/users`
-
-Returns a paginated list of all platform users.
-
-**Access:** Admin only
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | int | 1 | Page number |
-| `pageSize` | int | 20 | Items per page |
-| `role` | string | null | Filter by role: `Admin`, `Artist`, `Buyer` |
-
-**Response `200 OK`:**
-```json
-{
-  "data": [
-    {
-      "id": "3fa85f64-...",
-      "displayName": "Layla Hassan",
-      "email": "layla@example.com",
-      "role": "Artist",
-      "artistStatus": "Approved",
-      "createdAt": "2025-01-05T10:00:00Z"
-    }
-  ],
-  "page": 1,
-  "pageSize": 20,
-  "totalCount": 142,
-  "totalPages": 8
-}
-```
-
-**Status Codes:** `200`, `401`, `403`
-
----
-
-## 6. Artist Endpoints
-
-### Get Artist Profile
-
-**GET** `/api/v1/artists/{artistId}`
-
-Returns the public profile of an approved artist including their active listings.
-
-**Access:** Public
-
-**Response `200 OK`:**
-```json
-{
-  "id": "9c84be12-1a22-4f55-9d14-adf123456789",
-  "displayName": "Omar Farouk",
-  "bio": "Watercolor artist from Cairo, Egypt.",
-  "profileImageUrl": "https://cdn.artmarket.io/profiles/omar.jpg",
-  "subscriptionTier": "Premium",
-  "approvedAt": "2025-01-11T12:00:00Z",
-  "artworks": [
-    {
-      "id": "ab12cd34-...",
-      "title": "Cairo at Sunset",
-      "price": 450.00,
-      "medium": "Watercolor",
-      "thumbnailUrl": "https://cdn.artmarket.io/artworks/thumb/cairo-sunset.jpg",
-      "isAvailable": true
-    }
-  ]
-}
-```
-
-**Status Codes:** `200`, `404`
-
----
-
-### Update Artist Profile
-
-**PUT** `/api/v1/artists/me`
-
-Updates the authenticated artist's own profile.
-
-**Access:** Artist (Approved)
-
-**Request Body:**
-```json
-{
-  "displayName": "Omar Farouk",
-  "bio": "Watercolor and oil artist based in Cairo.",
-  "profileImageUrl": "https://cdn.artmarket.io/profiles/omar-v2.jpg"
-}
-```
-
-**Response `200 OK`:**
-```json
-{
-  "id": "9c84be12-...",
-  "displayName": "Omar Farouk",
-  "bio": "Watercolor and oil artist based in Cairo.",
-  "profileImageUrl": "https://cdn.artmarket.io/profiles/omar-v2.jpg",
-  "updatedAt": "2025-01-15T14:00:00Z"
-}
-```
-
-**Status Codes:** `200`, `400`, `401`, `403`
-
----
-
-### Get My Artworks
-
-**GET** `/api/v1/artists/me/artworks`
-
-Returns all artworks (including unavailable) for the authenticated artist.
-
-**Access:** Artist (Approved)
-
-**Response `200 OK`:**
-```json
-[
-  {
-    "id": "ab12cd34-...",
-    "title": "Cairo at Sunset",
-    "description": "A watercolor scene of the Nile at dusk.",
-    "price": 450.00,
-    "medium": "Watercolor",
-    "dimensions": "40cm x 60cm",
-    "imageUrl": "https://cdn.artmarket.io/artworks/cairo-sunset.jpg",
-    "isAvailable": true,
-    "createdAt": "2025-01-12T10:00:00Z"
+  "id": "aspnet-identity-id",
+  "email": "buyer@example.com",
+  "role": "Buyer",
+  "createdAt": "2025-01-01T00:00:00Z",
+  "profile": {
+    "buyerId": "uuid",
+    "displayName": "Sara Ali"
   }
-]
-```
-
-**Status Codes:** `200`, `401`, `403`
-
----
-
-### Get Received Orders
-
-**GET** `/api/v1/artists/me/orders`
-
-Returns all order requests received by the authenticated artist.
-
-**Access:** Artist (Approved)
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `status` | string | null | Filter: `Pending`, `Accepted`, `Declined`, `Completed` |
-| `page` | int | 1 | Page number |
-
-**Response `200 OK`:**
-```json
-{
-  "data": [
-    {
-      "id": "order-uuid-here",
-      "artwork": {
-        "id": "ab12cd34-...",
-        "title": "Cairo at Sunset"
-      },
-      "buyer": {
-        "id": "buyer-uuid-here",
-        "displayName": "Sara Ali",
-        "email": "sara@example.com"
-      },
-      "message": "Hi! I'd love to purchase this piece. Can we discuss shipping?",
-      "status": "Pending",
-      "createdAt": "2025-01-15T11:00:00Z"
-    }
-  ],
-  "page": 1,
-  "totalCount": 7
 }
 ```
 
-**Status Codes:** `200`, `401`, `403`
+---
+
+### PATCH `/users/me` 🔒
+
+Update current user's profile fields. Only fields relevant to the user's role are accepted.
+
+**Request Body (Artist):**
+```json
+{
+  "displayName": "Ahmed Hassan",
+  "bio": "Updated bio",
+  "profileImage": "https://..."
+}
+```
+
+**Request Body (Buyer):**
+```json
+{
+  "displayName": "Sara Ali"
+}
+```
+
+**Response `200 OK`:** Updated profile object.
 
 ---
 
-## 7. Artwork Endpoints
+### GET `/artists/{artistId}`
 
-### List Artworks (Public)
+Public artist profile page.
 
-**GET** `/api/v1/artworks`
+**Response `200 OK`:**
+```json
+{
+  "artistId": "uuid",
+  "displayName": "Ahmed Hassan",
+  "bio": "Abstract expressionist",
+  "profileImage": "https://...",
+  "status": "Active",
+  "subscription": {
+    "tier": "Pro",
+    "isActive": true
+  }
+}
+```
 
-Returns a paginated list of available artworks from approved artists.
+---
 
-**Access:** Public
+### GET `/artists/{artistId}/artworks`
+
+Get all available artworks for a specific artist (public gallery).
+
+**Query Params:** `page`, `limit`, `sort`
+
+---
+
+## Artworks
+
+### GET `/artworks`
+
+List artworks with filtering and sorting.
 
 **Query Parameters:**
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | int | 1 | Page number |
-| `pageSize` | int | 12 | Items per page |
-| `medium` | string | null | Filter by medium (e.g., `Watercolor`, `Oil`, `Digital`) |
-| `minPrice` | decimal | null | Minimum price filter |
-| `maxPrice` | decimal | null | Maximum price filter |
-| `search` | string | null | Search in title and description |
-| `sortBy` | string | `newest` | `newest`, `price_asc`, `price_desc` |
+| Param | Type | Description |
+|-------|------|-------------|
+| `artist_id` | string | Filter by artist |
+| `is_available` | bool | `true` (default) or `false` |
+| `sort` | string | `price_asc`, `price_desc`, `newest` |
+| `page` | int | Page number (default: 1) |
+| `limit` | int | Per page (default: 20, max: 100) |
+
+**Example:** `GET /artworks?artist_id=abc&sort=price_asc&page=1`
 
 **Response `200 OK`:**
 ```json
 {
   "data": [
     {
-      "id": "ab12cd34-...",
-      "title": "Cairo at Sunset",
+      "artId": "uuid",
+      "title": "Blue Horizon",
+      "description": "...",
       "price": 450.00,
-      "medium": "Watercolor",
-      "thumbnailUrl": "https://cdn.artmarket.io/artworks/thumb/cairo-sunset.jpg",
-      "artist": {
-        "id": "9c84be12-...",
-        "displayName": "Omar Farouk",
-        "profileImageUrl": "https://cdn.artmarket.io/profiles/omar.jpg"
-      },
       "isAvailable": true,
-      "createdAt": "2025-01-12T10:00:00Z"
+      "imageUrl": "https://cdn.example.com/art/blue-horizon.jpg",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "artist": {
+        "artistId": "uuid",
+        "displayName": "Ahmed Hassan",
+        "profileImage": "https://..."
+      }
     }
   ],
-  "page": 1,
-  "pageSize": 12,
-  "totalCount": 87,
-  "totalPages": 8
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 87,
+    "totalPages": 5
+  }
 }
 ```
 
-**Status Codes:** `200`
-
 ---
 
-### Get Artwork Detail
+### POST `/artworks` 🔒 (Artist only)
 
-**GET** `/api/v1/artworks/{artworkId}`
-
-Returns full details for a single artwork.
-
-**Access:** Public
-
-**Response `200 OK`:**
-```json
-{
-  "id": "ab12cd34-...",
-  "title": "Cairo at Sunset",
-  "description": "A watercolor scene of the Nile at dusk, painted en plein air.",
-  "price": 450.00,
-  "medium": "Watercolor",
-  "dimensions": "40cm x 60cm",
-  "imageUrl": "https://cdn.artmarket.io/artworks/cairo-sunset.jpg",
-  "isAvailable": true,
-  "artist": {
-    "id": "9c84be12-...",
-    "displayName": "Omar Farouk",
-    "profileImageUrl": "https://cdn.artmarket.io/profiles/omar.jpg",
-    "bio": "Watercolor artist from Cairo."
-  },
-  "createdAt": "2025-01-12T10:00:00Z"
-}
-```
-
-**Status Codes:** `200`, `404`
-
----
-
-### Create Artwork
-
-**POST** `/api/v1/artworks`
-
-Creates a new artwork listing for the authenticated artist.
-
-**Access:** Artist (Approved)
-
-> ⚠️ Free-tier artists are limited to 5 active listings. Exceeding this returns `422`.
+Create a new artwork. `isAvailable` defaults to `true`. `createdAt` is set server-side.
 
 **Request Body:**
 ```json
 {
-  "title": "Desert Storm",
-  "description": "An abstract representation of a sandstorm in the Sahara.",
-  "price": 320.00,
-  "medium": "Oil on Canvas",
-  "dimensions": "50cm x 70cm",
-  "imageUrl": "https://cdn.artmarket.io/artworks/desert-storm.jpg"
+  "title": "Desert Sunset",
+  "description": "An oil painting of the Egyptian desert",
+  "price": 1200.00,
+  "imageUrl": "https://cdn.example.com/art/desert-sunset.jpg"
 }
 ```
 
-**Response `201 Created`:**
-```json
-{
-  "id": "new-artwork-uuid",
-  "title": "Desert Storm",
-  "price": 320.00,
-  "medium": "Oil on Canvas",
-  "isAvailable": true,
-  "createdAt": "2025-01-15T14:30:00Z"
-}
-```
-
-**Status Codes:** `201`, `400`, `401`, `403`, `422`
+**Response `201 Created`:** Full artwork object.
 
 ---
 
-### Update Artwork
+### GET `/artworks/{artId}`
 
-**PUT** `/api/v1/artworks/{artworkId}`
+Get a single artwork by its `ArtId`.
 
-Updates an existing artwork owned by the authenticated artist.
+**Response `200 OK`:** Full artwork object including artist display name and profile image.
 
-**Access:** Artist (owner only)
+---
+
+### PUT `/artworks/{artId}` 🔒 (Owner artist only)
+
+Full replacement update of an artwork. All fields required.
+
+---
+
+### PATCH `/artworks/{artId}` 🔒 (Owner artist only)
+
+Partial update. Send only the fields to change.
 
 **Request Body:**
 ```json
 {
-  "title": "Desert Storm II",
-  "price": 380.00,
+  "price": 1350.00,
   "isAvailable": false
 }
 ```
 
-**Response `200 OK`:** *(updated artwork object)*
-
-**Status Codes:** `200`, `400`, `401`, `403`, `404`
+**Response `200 OK`:** Updated artwork object.
 
 ---
 
-### Delete Artwork
+### DELETE `/artworks/{artId}` 🔒 (Owner artist only)
 
-**DELETE** `/api/v1/artworks/{artworkId}`
-
-Soft-deletes an artwork. The record is retained for order history.
-
-**Access:** Artist (owner only)
+Delete an artwork. Blocked if the artwork has any non-cancelled orders.
 
 **Response `204 No Content`**
 
-**Status Codes:** `204`, `401`, `403`, `404`
-
 ---
 
-## 8. Buyer Endpoints
+## Orders
 
-### Get Buyer Profile
+> **Key design decision:** Orders are top-level resources filtered by query parameters — not deeply nested under buyers or artists. This is the industry standard (Etsy, Shopify, Amazon).
+>
+> **V1 model:** One order = one artwork. `ArtistId` is stored directly on the order (denormalized from the artwork) for efficient filtering of an artist's incoming orders.
 
-**GET** `/api/v1/buyers/me`
+### GET `/orders` 🔒
 
-Returns the authenticated buyer's profile and order history summary.
+List orders. Results are scoped automatically based on the caller's role.
 
-**Access:** Buyer
+**Query Parameters:**
 
-**Response `200 OK`:**
-```json
-{
-  "id": "buyer-uuid-here",
-  "displayName": "Sara Ali",
-  "email": "sara@example.com",
-  "totalOrders": 3,
-  "createdAt": "2025-01-01T08:00:00Z"
-}
+| Param | Type | Description |
+|-------|------|-------------|
+| `buyer_id` | string | Filter by buyer (admin use) |
+| `artist_id` | string | Filter by artist — their incoming orders |
+| `status` | string | `Pending`, `Approved`, `Declined`, `Cancelled` |
+| `page` | int | Page number |
+| `limit` | int | Per page |
+
+**Examples:**
+```
+GET /orders?artist_id=abc    → artist sees their inbox
+GET /orders?buyer_id=xyz     → buyer sees their history
+GET /orders?status=Pending   → all pending orders (admin)
 ```
 
-**Status Codes:** `200`, `401`, `403`
-
 ---
 
-### Get My Orders
+### POST `/orders` 🔒 (Buyer only)
 
-**GET** `/api/v1/buyers/me/orders`
-
-Returns all orders placed by the authenticated buyer.
-
-**Access:** Buyer
-
-**Query Parameters:** `status`, `page`, `pageSize`
-
-**Response `200 OK`:**
-```json
-{
-  "data": [
-    {
-      "id": "order-uuid-here",
-      "artwork": {
-        "id": "ab12cd34-...",
-        "title": "Cairo at Sunset",
-        "thumbnailUrl": "https://cdn.artmarket.io/artworks/thumb/cairo-sunset.jpg"
-      },
-      "artist": {
-        "id": "9c84be12-...",
-        "displayName": "Omar Farouk",
-        "profileUrl": "/artists/9c84be12-..."
-      },
-      "status": "Pending",
-      "createdAt": "2025-01-15T11:00:00Z"
-    }
-  ],
-  "page": 1,
-  "totalCount": 3
-}
-```
-
-**Status Codes:** `200`, `401`, `403`
-
----
-
-## 9. Order Endpoints
-
-### Create Order Request
-
-**POST** `/api/v1/orders`
-
-Submits an order request for an artwork. Triggers an email notification to the artist. Returns a redirect URL to the artist's profile.
-
-**Access:** Buyer
+Place a new order for a single artwork (V1).
 
 **Request Body:**
 ```json
 {
-  "artworkId": "ab12cd34-ef56-7890-abcd-ef1234567890",
-  "message": "Hi Omar! I love this piece. I'm based in Alexandria — can we discuss delivery options?"
+  "artId": "uuid-of-artwork"
 }
 ```
 
 **Response `201 Created`:**
 ```json
 {
-  "orderId": "order-uuid-here",
+  "orderId": "uuid",
   "status": "Pending",
-  "message": "Your request has been sent. The artist will contact you by email.",
-  "artistProfileUrl": "/artists/9c84be12-1a22-4f55-9d14-adf123456789",
-  "createdAt": "2025-01-15T11:00:00Z"
-}
-```
-
-> 💡 **Note:** The `artistProfileUrl` is the URL the buyer should be redirected to. The actual deal (price negotiation, shipping arrangements) happens directly between the buyer and artist through the artist's profile or via email.
-
-**Status Codes:** `201`, `400`, `401`, `403`, `404`, `409`
-
----
-
-### Get Order Detail
-
-**GET** `/api/v1/orders/{orderId}`
-
-Returns full details for a specific order.
-
-**Access:** Buyer (order owner) or Artist (recipient) or Admin
-
-**Response `200 OK`:**
-```json
-{
-  "id": "order-uuid-here",
   "artwork": {
-    "id": "ab12cd34-...",
-    "title": "Cairo at Sunset",
+    "artId": "uuid",
+    "title": "Blue Horizon",
     "price": 450.00,
-    "imageUrl": "https://cdn.artmarket.io/artworks/cairo-sunset.jpg"
-  },
-  "buyer": {
-    "id": "buyer-uuid-here",
-    "displayName": "Sara Ali",
-    "email": "sara@example.com"
+    "imageUrl": "https://..."
   },
   "artist": {
-    "id": "9c84be12-...",
-    "displayName": "Omar Farouk"
+    "artistId": "uuid",
+    "displayName": "Ahmed Hassan"
   },
-  "message": "Hi Omar! I love this piece.",
-  "status": "Pending",
-  "createdAt": "2025-01-15T11:00:00Z",
-  "updatedAt": "2025-01-15T11:00:00Z"
+  "buyer": {
+    "buyerId": "uuid",
+    "displayName": "Sara Ali"
+  }
 }
 ```
 
-**Status Codes:** `200`, `401`, `403`, `404`
+> 🔔 **Server-side:** Artist is automatically notified by email when a new order is placed.
 
 ---
 
-### Update Order Status
+### GET `/orders/{orderId}` 🔒
 
-**PATCH** `/api/v1/orders/{orderId}/status`
+Get a specific order. Only accessible by the buyer who placed it, the artist receiving it, or an admin.
 
-Allows the artist to accept, decline, or mark an order as completed.
+**Response `200 OK`:** Full order object as shown above.
 
-**Access:** Artist (recipient of the order)
+---
+
+### PATCH `/orders/{orderId}` 🔒
+
+Update order status. Follows a strict state machine — invalid transitions are rejected with `422`.
+
+**Request Body:**
+```json
+{ "status": "Approved" }
+```
+
+**Valid status transitions:**
+
+| From | To | Who |
+|------|----|-----|
+| `Pending` | `Approved` | Artist |
+| `Pending` | `Declined` | Artist |
+| `Pending` | `Cancelled` | Buyer |
+| `Approved` | `Cancelled` | Artist / Admin |
+
+> 🔔 **Server-side:** Buyer is automatically notified by email on `Approved` or `Declined`.
+> Setting `Approved` also flips `Artwork.IsAvailable` to `false` server-side.
+
+**Response `204 No Content`**
+
+---
+
+### DELETE `/orders/{orderId}` 🔒
+
+Hard delete. Only allowed if status is `Pending` or `Cancelled`.
+
+**Response `204 No Content`**
+
+---
+
+## Subscriptions
+
+Artists must have an active subscription to list artworks on the platform.
+
+### GET `/subscriptions/me` 🔒 (Artist only)
+
+Get the current artist's subscription.
+
+**Response `200 OK`:**
+```json
+{
+  "subscriptionId": "uuid",
+  "tier": "Pro",
+  "isActive": true,
+  "startDate": "2025-01-01T00:00:00Z",
+  "endDate": "2026-01-01T00:00:00Z"
+}
+```
+
+**Response `404 Not Found`** if artist has no subscription yet.
+
+---
+
+### POST `/subscriptions` 🔒 (Artist only)
+
+Submit a new subscription request. Sets `isActive: false` until admin approves.
+
+**Request Body:**
+```json
+{ "tier": "Pro" }
+```
+
+**Response `201 Created`:**
+```json
+{
+  "subscriptionId": "uuid",
+  "tier": "Pro",
+  "isActive": false,
+  "startDate": null,
+  "endDate": null
+}
+```
+
+---
+
+### PATCH `/subscriptions/{subscriptionId}` 🔒 (Admin only)
+
+Activate or deactivate a subscription. On activation, `startDate` and `endDate` are set server-side.
+
+**Request Body:**
+```json
+{ "isActive": true }
+```
+
+**Response `204 No Content`**
+
+---
+
+## Admin
+
+### GET `/admin/users` 🔒 (Admin only)
+
+List all users with optional filters.
+
+**Query Params:** `role`, `is_approved`, `page`, `limit`
+
+---
+
+### PATCH `/admin/users/{userId}` 🔒 (Admin only)
+
+Update a user's account status or role.
 
 **Request Body:**
 ```json
 {
-  "status": "Accepted"
+  "isApproved": true,
+  "role": "artist"
 }
 ```
 
-Valid status transitions: `Pending → Accepted`, `Pending → Declined`, `Accepted → Completed`
-
-**Response `200 OK`:**
-```json
-{
-  "orderId": "order-uuid-here",
-  "status": "Accepted",
-  "updatedAt": "2025-01-15T14:00:00Z"
-}
-```
-
-**Status Codes:** `200`, `400`, `401`, `403`, `404`, `422`
+**Response `200 OK`:** Updated user object.
 
 ---
 
-## 10. Chatbot Endpoints
+## Error Handling
 
-### Send Message to Chatbot
+All errors follow a consistent structure:
 
-**POST** `/api/v1/chatbot/message`
-
-Sends a message to the AI art discovery assistant. The chatbot helps buyers find artwork that matches their description, style preferences, or budget.
-
-**Access:** Any authenticated user (Buyer recommended)
-
-**Request Body:**
 ```json
 {
-  "message": "I'm looking for something abstract and colorful, under $300, to hang in my living room.",
-  "conversationHistory": [
-    {
-      "role": "user",
-      "content": "Hello, I need help finding art."
-    },
-    {
-      "role": "assistant",
-      "content": "I'd be happy to help! What style of art are you drawn to?"
-    }
-  ]
+  "status": 404,
+  "error": "Not Found",
+  "message": "Artwork with ID 'abc' was not found.",
+  "traceId": "0HN7G6..."
 }
 ```
 
-> 💡 `conversationHistory` is optional on the first message. Include previous turns to maintain context.
+### HTTP Status Codes Used
 
-**Response `200 OK`:**
-```json
-{
-  "reply": "I found a few abstract pieces that might work perfectly for your space! Here are some options:",
-  "artworkSuggestions": [
-    {
-      "id": "artwork-uuid-1",
-      "title": "Vibrant Chaos",
-      "price": 250.00,
-      "medium": "Acrylic",
-      "thumbnailUrl": "https://cdn.artmarket.io/artworks/thumb/vibrant-chaos.jpg",
-      "artist": {
-        "id": "artist-uuid-1",
-        "displayName": "Nour Khalil"
-      }
-    },
-    {
-      "id": "artwork-uuid-2",
-      "title": "Blue Harmony",
-      "price": 280.00,
-      "medium": "Mixed Media",
-      "thumbnailUrl": "https://cdn.artmarket.io/artworks/thumb/blue-harmony.jpg",
-      "artist": {
-        "id": "artist-uuid-2",
-        "displayName": "Amira Saad"
-      }
-    }
-  ]
-}
-```
-
-**Status Codes:** `200`, `400`, `401`, `500`
+| Code | Meaning |
+|------|---------|
+| `200` | OK |
+| `201` | Created |
+| `204` | No Content (success with no body) |
+| `400` | Bad Request (validation error) |
+| `401` | Unauthorized (missing/invalid token) |
+| `403` | Forbidden (valid token, wrong role/ownership) |
+| `404` | Not Found |
+| `409` | Conflict (e.g., duplicate email) |
+| `422` | Unprocessable Entity (business rule violation) |
+| `500` | Internal Server Error |
 
 ---
 
-### Get Chatbot Status
+## Design Decisions & Reasoning
 
-**GET** `/api/v1/chatbot/status`
+### Why are orders top-level, not nested under buyers or artists?
 
-Returns the operational status of the chatbot service.
+An order has **two stakeholders**: the buyer who placed it, and the artist who fulfills it. Nesting it under either one would mean the other can't access it cleanly. The industry solution (used by Etsy, Shopify, Amazon) is to make orders a **first-class resource** and use query parameters to filter by perspective:
 
-**Access:** Public
-
-**Response `200 OK`:**
-```json
-{
-  "status": "Operational",
-  "model": "gpt-4o",
-  "checkedAt": "2025-01-15T14:00:00Z"
-}
+```
+GET /orders?buyer_id=xyz   → buyer's history
+GET /orders?artist_id=abc  → artist's inbox
 ```
 
-**Status Codes:** `200`, `503`
+### Why is ArtistId stored directly on Order in V1?
+
+`Order.ArtistId` is technically derivable via `Order.ArtWork.ArtistId`, but storing it directly avoids a JOIN every time an artist queries their inbox. This is a deliberate **denormalization tradeoff** acceptable in V1. The risk: if an artwork's artist somehow changes, the order becomes inconsistent — mitigated by never allowing artist reassignment on artworks.
+
+### Why no OrderItems in V1?
+
+This is a YAGNI (You Aren't Gonna Need It) decision. One order = one artwork is sufficient for the first release. The endpoint contract (`POST /orders` with `artId`) is designed so that V2 migration only changes the internal model and request body — no URL changes needed.
+
+### Why does email notification not have its own endpoint?
+
+Email is a **side effect of a state change**, not an independent API action. When order status changes to `Approved`, the server fires the notification automatically. Exposing `POST /orders/{id}/mail` would let clients trigger emails arbitrarily, breaking consistency and opening abuse vectors.
+
+### Why does User extend IdentityUser instead of being a plain class?
+
+ASP.NET Identity provides authentication, password hashing, claims, roles, and token management out of the box. Extending `IdentityUser` means you get all of that for free. `Artist` and `Buyer` are **separate profile tables** linked by `UserId` — this keeps identity concerns separate from domain concerns, and allows one person to hold both roles in the future.
+
+### Why use PATCH for status changes instead of action URLs?
+
+```
+❌ POST /orders/{id}/approve   ← verb in URL, not RESTful
+✅ PATCH /orders/{id}  body: { "status": "Approved" }  ← state machine via body
+```
+
+The order **resource** is being mutated. `PATCH` is the correct verb. This also means adding a new status (`Refunded`, `Disputed`) requires zero endpoint changes.
+
+---
+
+*Art Marketplace API v1.0.0 — updated to reflect actual domain models*
