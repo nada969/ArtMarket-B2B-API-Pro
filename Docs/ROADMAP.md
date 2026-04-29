@@ -8,39 +8,39 @@
 
 | Phase | Theme | Status |
 |-------|-------|--------|
-| [Phase 1 — MVP](#phase-1--mvp) | Core marketplace functionality | ✅ Complete |
-| [Phase 2 — Enhancements](#phase-2--enhancements) | Discoverability, trust, and retention | 🔄 In Progress |
-| [Phase 3 — Scale](#phase-3--scale) | Mobile, payments, analytics | 📅 Planned |
+| [Phase 1 — MVP](#phase-1--mvp) | Core marketplace functionality | In Progress |
+| [Phase 2 — Enhancements](#phase-2--enhancements) | Discoverability, trust, and retention | Planned |
+| [Phase 3 — Scale](#phase-3--scale) | Mobile, payments, analytics | Planned |
 
 ---
 
 ## Phase 1 — MVP
 
-**Status: ✅ Complete** — Released in v1.0.0
+**Status: In Progress** 
 
 The MVP establishes the full foundation of the marketplace: artist onboarding, artwork listings, buyer order requests, and the AI discovery chatbot.
 
-### Delivered Features
+### Features
 
-- [x] **User registration & login** — JWT authentication with role-based authorization (Admin, Artist, Buyer)
-- [x] **Artist approval workflow** — Artists register as `Pending` and are manually approved by an Admin
-- [x] **Artist profiles** — Public-facing artist pages with bio, profile image, and active listings
-- [x] **Artwork listings** — Artists can create, update, and soft-delete artwork listings with title, description, price, medium, and image
-- [x] **Tiered listing system** — Free tier capped at 5 listings; Premium tier is unlimited
-- [x] **Order request system** — Buyers submit order requests with a personal message; artist receives the request
-- [x] **Artist redirect** — After placing an order, buyers are redirected to the artist's profile to finalize the deal directly
-- [x] **Email notifications** — Automated emails to artists on new orders, approval, and rejection
-- [x] **AI chatbot** — Natural language art discovery powered by GPT-4o, returns matched artwork from the database
-- [x] **Public artwork browse** — Paginated, filterable listing of available artworks from approved artists
-- [x] **Admin tools** — Manage users and handle artist approval queue
-- [x] **Docker support** — Full containerized local development environment
-- [x] **Swagger docs** — Interactive API documentation in Development
+- [ ] **User registration & login** — JWT authentication with role-based authorization (Admin, Artist, Buyer)
+- [ ] **Artist approval workflow** — Artists register as `Pending` and are manually approved by an Admin
+- [ ] **Artist profiles** — Public-facing artist pages with bio, profile image, and active listings
+- [ ] **Artwork listings** — Artists can create, update, and soft-delete artwork listings with title, description, price, medium, and image
+- [ ] **Tiered listing system** — Free tier capped at 5 listings; Premium tier is unlimited
+- [ ] **Order request system** — Buyers submit order requests with a personal message; artist receives the request
+- [ ] **Artist redirect** — After placing an order, buyers are redirected to the artist's profile to finalize the deal directly
+- [ ] **Email notifications** — Automated emails to artists on new orders, approval, and rejection
+- [ ] **AI chatbot** — Natural language art discovery powered by GPT-4o, returns matched artwork from the database
+- [ ] **Public artwork browse** — Paginated, filterable listing of available artworks from approved artists
+- [ ] **Admin tools** — Manage users and handle artist approval queue
+- [ ] **Docker support** — Full containerized local development environment
+- [ ] **Swagger docs** — Interactive API documentation in Development
 
 ---
 
 ## Phase 2 — Enhancements
 
-**Status: 🔄 In Planning**
+**Status: Planned**
 
 Phase 2 focuses on deepening trust between buyers and artists, improving artwork discoverability, and giving artists better tools to manage their presence.
 
@@ -80,7 +80,7 @@ Phase 2 focuses on deepening trust between buyers and artists, improving artwork
 
 ## Phase 3 — Scale
 
-**Status: 📅 Planned**
+**Status: Planned**
 
 Phase 3 transforms ArtMarket from a functional marketplace into a scalable, monetized platform with a mobile presence and data-driven growth tools.
 
