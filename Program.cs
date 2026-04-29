@@ -1,5 +1,12 @@
+using B2B_Procurement___Order_Management_Platform.ArtMarket.Application.Services;
+using B2B_Procurement___Order_Management_Platform.ArtMarket.Domain.Models;
+using B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.Repositories;
 using B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructure.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace B2B_Procurement___Order_Management_Platform
 {
@@ -15,15 +22,41 @@ namespace B2B_Procurement___Order_Management_Platform
                 options.UseNpgsql(connectionString)
             );
 
+            builder.Services.AddIdentity<User, IdentityRole>()
+                .AddEntityFrameworkStores<AppDb>()
+                .AddDefaultTokenProviders();
+            
+            builder.Services.AddAuthentication(options =>                                 /// to map JWT section in appsettings.json --> in class JWT.cs 
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+                .AddJwtBearer(o =>
+                {
+                    o.RequireHttpsMetadata = false;
+                    o.SaveToken = false;
+                    o.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidAudience = builder.Configuration["JWT:Audience"],
+                        ValidIssuer = builder.Configuration["JWT:Issuer"],
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Key"]))
+
+                    };
+
+                });
+
+
 
             ////// the Services
-            //builder.Services.AddScoped<IUserService, UserServices>();
-            builder.Services.AddHealthChecks();
+            builder.Services.AddScoped<IAuthService, AuthService>();
             
 
             ///// the repository
-            //builder.Services.AddScoped<IUserRepository, UserRepository>();
-            //builder.Services.AddScoped<IProductRepository, ProductRepository>();
+            builder.Services.AddScoped<IAuthRepo, AuthRepo>();
 
             ////// the controller
             builder.Services.AddControllers();
@@ -42,11 +75,10 @@ namespace B2B_Procurement___Order_Management_Platform
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
-            //app.UseAuthorization();
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.MapControllers();
-            app.MapHealthChecks("/health");
 
             app.Run();
         }
