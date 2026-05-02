@@ -19,7 +19,7 @@
 ## 2. Authentication (Weeks 3–4)
 **~24 hrs · Goal:** Register, login, JWT working  
 
-- [ ] User registration + BCrypt hashing  
+- [x] User registration + BCrypt hashing  
 - [ ] JWT token generation  
 - [ ] Refresh token flow  
 - [ ] Role assignment  
