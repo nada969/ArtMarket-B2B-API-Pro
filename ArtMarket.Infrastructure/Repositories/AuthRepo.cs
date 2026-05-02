@@ -4,6 +4,10 @@ using B2B_Procurement___Order_Management_Platform.ArtMarket.Domain.Models;
 using B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.Repositories
 {
@@ -11,8 +15,11 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.R
     {
         Task<bool> UserExistAsync(string Email);
         Task<User?> GetByEmailAsync(string Email);
-        Task<User?> Register(RegisterDTO authDTO);
+        Task<IdentityResult?> Register(RegisterDTO authDTO);
+        Task<UserRole?> GetRolesAsync(string username);
+        Task<IList<Claim>> GetClaimsAsync(User user);
     }
+
     public class AuthRepo : IAuthRepo
     {
         private readonly AppDb _appDb;
@@ -24,7 +31,20 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.R
             _userManager = userManager;
             _logger = logger;
         }
-
+        public async Task<IList<Claim>> GetClaimsAsync(User user)
+        {
+            return await _userManager.GetClaimsAsync(user);
+        }
+        public async Task<UserRole?> GetRolesAsync(string username)
+        {
+            var roles =
+                await _appDb.Users
+                .Where(u => u.UserName == username)
+                .Select(u => u.Role)
+                .FirstOrDefaultAsync();
+        
+            return roles;
+        }
         public async Task<bool> UserExistAsync(string Email)
         {
             return await _userManager.FindByEmailAsync(Email) is not null;
@@ -36,36 +56,27 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.R
             return await _appDb.Users.FirstOrDefaultAsync(u => u.Email == Email);
         }
 
-        public async Task<User?> Register(RegisterDTO authDTO) 
+        
+        public async Task<IdentityResult?> Register(RegisterDTO authDTO) 
         {
-            
-            
+
             /// 1.create new user
-            User newUser = new User();
-            newUser.Email = authDTO.email;
-            newUser.UserName = authDTO.userName;
-            newUser.CreatedAt = DateTime.UtcNow;
-            
+            User newUser = new User
+            {  Email= authDTO.email,
+               UserName= authDTO.userName,
+               CreatedAt = DateTime.UtcNow };
 
-            /// 2.save to DB
-            //await _appDb.Users.AddAsync(newUser);
-            //await _appDb.SaveChangesAsync();
-            //// using "userManager" to:hash password automaticly& normalize the email
-            var result = await _userManager.CreateAsync(newUser, authDTO.password);
-            if (!result.Succeeded)
+            //// 2.Chect the Role Selection
+            if (!Enum.TryParse<UserRole>(authDTO.role, true, out var parsedRole))
             {
-                foreach (var error in result.Errors)
-                    _logger.LogError("Identity error for {Email}: {Code} - {Description}",
-                        authDTO.email, error.Code, error.Description);
-
+                //string Message = ("Register attempt with existing email: {Email}" + authDTO.email);
                 return null;
             }
-            //Assign Identity role
-            await _userManager.AddToRoleAsync(newUser, parsedRole.ToString());
-            _logger.LogInformation("User registered successfully: {Email}", authDTO.email);
-
-            /// 3.Return the new user            
-            return (newUser);
+            newUser.Role = parsedRole;
+            
+            //// 3.save to dataBase
+            //// using "userManager" to:hash password automaticly& normalize the email
+            return await _userManager.CreateAsync(newUser,authDTO.password);
         }
 
 

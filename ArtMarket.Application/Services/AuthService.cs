@@ -3,9 +3,13 @@ using B2B_Procurement___Order_Management_Platform.ArtMarket.Domain.Enums;
 using B2B_Procurement___Order_Management_Platform.ArtMarket.Domain.Models;
 using B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure;
 using B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using NuGet.Protocol;
+using System.Data;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 
@@ -14,88 +18,99 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Application.Serv
 {
     public interface IAuthService
     {
-        public Task<User?> Register(RegisterDTO authDTO);
-        public void Login();
-        public void ForgotPassword();
-        public void ResetPassword();
-        public void Logout();
+        Task<AuthResponseDTO?> Register(RegisterDTO authDTO);
+        void Login();
+        void ForgotPassword();
+        void ResetPassword();
+        void Logout();
 
     }
     public class AuthService: IAuthService
     {
-        //private readonly JWT _jwt;
+        private readonly JWT _jwt;
         private readonly IAuthRepo _authRepo;
-        private readonly AuthDTO _authDTO1;
-        private readonly ILogger<AuthRepo> _logger;
+        private readonly ILogger<AuthService> _logger;
 
 
-        public AuthService( IAuthRepo authRepo, AuthDTO authDTO1, ILogger<AuthRepo> logger)
+        public string Message = string.Empty;
+
+
+        public AuthService (IOptions<JWT> jwt,IAuthRepo authRepo, ILogger<AuthService> logger)
         {
-            //_jwt = jwt;
+            _jwt = jwt.Value;
             _authRepo = authRepo;
-            _authDTO1 = authDTO1;
             _logger = logger;
 
         }
 
 
-        //private async Task<JwtSecurityToken> CreateJwtToken(User user)
-        //{
 
-        //    var userClaims = await _authRepo.GetClaimsAsync(user);
-        //    var roles = await _userManager.GetRolesAsync(user);
-        //    var roleClaims = new List<Claim>();
-
-        //    foreach (var role in roles)
-        //        roleClaims.Add(new Claim("roles", role));
-
-        //    var claims = new[]
-        //    {
-        //        new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
-        //        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        //        new Claim(JwtRegisteredClaimNames.Email, user.Email),
-        //        new Claim("uid", user.Id)
-        //    }
-        //    .Union(userClaims)
-        //    .Union(roleClaims);
-
-        //    var symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
-        //    var signingCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256);
-
-        //    var jwtSecurityToken = new JwtSecurityToken(
-        //        issuer: _jwt.Issuer,
-        //        audience: _jwt.Audience,
-        //        claims: claims,
-        //        expires: DateTime.Now.AddDays(_jwt.DurationInDays),
-        //        signingCredentials: signingCredentials);
-
-        //    return jwtSecurityToken;
-        //}           
-
-        public async Task<User?> Register(RegisterDTO authDTO)
+        private async Task<JwtSecurityToken> CreateJwtToken(User user)
         {
-            string Message;
-            if (await _authRepo.UserExistAsync(authDTO.email))
+            var userClaims = await _authRepo.GetClaimsAsync(user);
+            var role = await _authRepo.GetRolesAsync(user.UserName);
+            var roleClaims = new List<Claim>();
+
+
+            var claims = new[]
             {
-                Message = ("Register attempt with existing email: {Email}"+ authDTO.email);
-                return null;
+                new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim("uid", user.Id)
+            }
+            .Union(userClaims)
+            .Union(roleClaims);
+
+            if (role.HasValue)
+                roleClaims.Add(new Claim(ClaimTypes.Role, role.Value.ToString()));
+
+            var symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
+            var signingCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256);
+
+            var jwtSecurityToken = new JwtSecurityToken(
+                issuer: _jwt.Issuer,
+                audience: _jwt.Audience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddDays(_jwt.DurationInDays),
+                signingCredentials: signingCredentials);
+
+            return jwtSecurityToken;
+        }
+
+        public async Task<AuthResponseDTO?> Register(RegisterDTO authDTO)
+        {
+            ///1.check if user exist in database using email search:
+            //if (await _authRepo.UserExistAsync(authDTO.email))
+            //{
+            //    Message = ("Register attempt with existing email: {Email}" + authDTO.email);
+            //    return null;
+            //}
+
+            var result = await _authRepo.Register(authDTO);
+            if(result is null || !result.Succeeded)
+            {
+                return new AuthResponseDTO
+                {
+                    IsAuthenticated = false,
+                    Message = "Register Successfully"
+                };
             }
 
-            if (!Enum.TryParse<UserRole>(authDTO.role, true, out var parsedRole))
-            {
-                Message = ("Register attempt with existing email: {Email}" + authDTO.email);
-                return null;
-            }
+            var user = await _authRepo.GetByEmailAsync(authDTO.email);
+            /// 2. generate JWT token
+            var jwtSecurityToken = await CreateJwtToken(user);
 
-            User? newUser = await _authRepo.Register(authDTO);
-
-            //var jwtSecurityToken = await CreateJwtToken(new_user);
-            if (newUser is null)
+            /// 3. return user with his token
+            return new AuthResponseDTO
             {
-                return _authDTO1.Fail(Message);
-            }
-            newUser.Role = parsedRole;
-            return _authDTO1.OK(newUser.Email,"token");
+                IsAuthenticated = true,
+                Email = authDTO.email,
+                UserName = authDTO.userName,
+                Message = "Register Successfully",
+                Token = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken),
+                ExpiresOn=jwtSecurityToken.ValidTo,
+            };
         } 
         public void ForgotPassword()
         {

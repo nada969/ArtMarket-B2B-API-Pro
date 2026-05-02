@@ -20,12 +20,13 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.API.Controllers
         {
             /// call register service --> include logic
             var result = await _authService.Register(authDTO);
-            
-            if (result is null)
+            if(result.IsAuthenticated == false)
             {
-                return BadRequest(new { result });
+                return BadRequest(result.Message);
             }
-            return Ok(new { result.Email, Token = "GeneratedTokenFromService" });
+            
+            return Ok(result);
+            
         }
 
         [HttpPost("login")]
