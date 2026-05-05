@@ -23,13 +23,17 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Application.DTOs
         [RegularExpression("^(Buyer|Artist|Admin)$",
             ErrorMessage = "Role must be Buyer, Artist, or Admin.")]
         public string role { get; set; }
+
         public RegisterDTO() { }
-        public RegisterDTO(string email,string password,string role) 
+        public RegisterDTO(string email, string password,string username,string role) 
         {
             this.email = email;
             this.password = password;
+            this.userName = username;
             this.role = role;
+            
         }
+
 
     }
 }
