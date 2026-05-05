@@ -22,7 +22,7 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.API.Controllers
             var result = await _authService.Register(authDTO);
             if(result.IsAuthenticated == false)
             {
-                return BadRequest(result.Message);
+                return BadRequest(result?.Message ?? "Failed");
             }
             
             return Ok(result);
