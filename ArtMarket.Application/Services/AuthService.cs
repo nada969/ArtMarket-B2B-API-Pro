@@ -80,28 +80,54 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Application.Serv
 
         public async Task<AuthResponseDTO?> Register(RegisterDTO authDTO)
         {
-            ///1.check if user exist in database using email search:
-            //if (await _authRepo.UserExistAsync(authDTO.email))
-            //{
-            //    Message = ("Register attempt with existing email: {Email}" + authDTO.email);
-            //    return null;
-            //}
+            /// the flow: (exist check → save → verify → token → return)
 
-            var result = await _authRepo.Register(authDTO);
-            if(result is null || !result.Succeeded)
+            ///1.check if user exist in database using email search:
+            if (await _authRepo.UserExistAsync(authDTO.email))
             {
+                _logger.LogWarning("Register attempt with existing email: {Email}", authDTO.email);
                 return new AuthResponseDTO
                 {
                     IsAuthenticated = false,
-                    Message = "Register Successfully"
+                    Message = "This email is already registered."
                 };
             }
 
-            var user = await _authRepo.GetByEmailAsync(authDTO.email);
-            /// 2. generate JWT token
-            var jwtSecurityToken = await CreateJwtToken(user);
+            ///2. save this in DB and check if it done greate
+            var result = await _authRepo.Register(authDTO);
+            if(result is null || !result.Succeeded)
+            {
+                _logger.LogWarning("Register failed for {Email}: {Errors}",
+                authDTO.email,
+                string.Join(", ", result?.Errors.Select(e => e.Description) ?? new[] { "null result" }));
 
-            /// 3. return user with his token
+                return new AuthResponseDTO
+                {
+                    IsAuthenticated = false,
+                    /// use the Identity ti=o show exactly what is failed
+                    Message = result?.Errors.Any() == true
+                    ? string.Join(" ", result.Errors.Select(e => e.Description))
+                    : "Registration failed."
+                };
+            }
+            
+            ///3. verify the register
+            var user = await _authRepo.GetByEmailAsync(authDTO.email);
+            if (user is null)
+            {
+                _logger.LogError("User not found after successful registration: {Email}", authDTO.email);
+                return new AuthResponseDTO 
+                { 
+                    IsAuthenticated = false, 
+                    Message = "Registration error. Please try again." 
+                };
+            }
+
+            /// 4. generate JWT token
+            var jwtSecurityToken = await CreateJwtToken(user);
+            _logger.LogInformation("User registered successfully: {Email}", authDTO.email);
+
+            /// 5. return user with his token
             return new AuthResponseDTO
             {
                 IsAuthenticated = true,
