@@ -69,6 +69,7 @@ Register a new user (artist or buyer).
 {
   "email": "user@example.com",
   "password": "SecurePass123!",
+  "userName": "UserName",
   "role": "buyer"
 }
 ```
@@ -76,10 +77,12 @@ Register a new user (artist or buyer).
 **Response `201 Created`:**
 ```json
 {
-  "id": "uuid",
-  "email": "user@example.com",
-  "role": "buyer",
-  "createdAt": "2025-01-01T00:00:00Z"
+  "isAuthenticated": true,
+  "userName": "stdab",
+  "email": "user@example.com,
+  "token": "token",
+  "message": "Register Successfully",
+  "expiresOn": "2026-06-09T22:02:59Z"
 }
 ```
 
