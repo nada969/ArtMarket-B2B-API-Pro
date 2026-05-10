@@ -20,8 +20,8 @@
 **~24 hrs · Goal:** Register, login, JWT working  
 
 - [x] User registration + BCrypt hashing  
-- [ ] JWT token generation  
-- [ ] Refresh token flow  
+- [x] JWT token generation  
+- [x] Refresh token flow  
 - [ ] Role assignment  
 - [ ] Add `[Authorize]` to test endpoints  
 - [ ] Create Postman collection for auth  
