@@ -50,7 +50,9 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Application.Serv
             var userClaims = await _authRepo.GetClaimsAsync(user);
             var role = await _authRepo.GetRolesAsync(user.UserName);
             var roleClaims = new List<Claim>();
-
+            
+            if (role.HasValue)
+                roleClaims.Add(new Claim(ClaimTypes.Role, role.Value.ToString()));
 
             var claims = new[]
             {
@@ -62,8 +64,7 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Application.Serv
             .Union(userClaims)
             .Union(roleClaims);
 
-            if (role.HasValue)
-                roleClaims.Add(new Claim(ClaimTypes.Role, role.Value.ToString()));
+    
 
             var symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
             var signingCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256);

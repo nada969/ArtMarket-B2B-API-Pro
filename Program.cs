@@ -1,5 +1,6 @@
 using B2B_Procurement___Order_Management_Platform.ArtMarket.Application.Services;
 using B2B_Procurement___Order_Management_Platform.ArtMarket.Domain.Models;
+using B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure;
 using B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.Repositories;
 using B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -25,8 +26,9 @@ namespace B2B_Procurement___Order_Management_Platform
             builder.Services.AddIdentity<User, IdentityRole>()
                 .AddEntityFrameworkStores<AppDb>()
                 .AddDefaultTokenProviders();
-            
-            builder.Services.AddAuthentication(options =>                                 /// to map JWT section in appsettings.json --> in class JWT.cs 
+
+            builder.Services.Configure<JWT>(builder.Configuration.GetSection("JWT"));
+            builder.Services.AddAuthentication(options =>         /// to map JWT section in appsettings.json --> in class JWT.cs 
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -48,7 +50,9 @@ namespace B2B_Procurement___Order_Management_Platform
                     };
 
                 });
-
+                var jwtSection = builder.Configuration.GetSection("JWT");
+                Console.WriteLine($"Key: {jwtSection["Key"]}");
+                Console.WriteLine($"Issuer: {jwtSection["Issuer"]}");
 
 
             ////// the Services
