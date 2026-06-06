@@ -1,9 +1,11 @@
 ﻿using B2B_Procurement___Order_Management_Platform.ArtMarket.Domain.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructure.Data
 {
-    public class AppDb:DbContext
+    public class AppDb: IdentityDbContext<User>
     {
         public AppDb(DbContextOptions<AppDb> options)
             : base(options) { }
@@ -18,6 +20,7 @@ namespace B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructu
         /// Add Configuration
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
             /// PrimaryKey (UserId) ---> must show (Role)
             modelBuilder.Entity<User>(entity =>
             {
@@ -25,6 +28,11 @@ namespace B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructu
                 entity.Property(a => a.Role)
                       .HasConversion<string>();
             });
+            modelBuilder.Entity<IdentityPasskeyData>(entity =>
+            {
+                entity.HasNoKey();
+            });
+
             /// ForeignKey (UserId)     Buyer(child) → User(parent) (One-to-One)
             modelBuilder.Entity<Buyer>(entity =>
             {

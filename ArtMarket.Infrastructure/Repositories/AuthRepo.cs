@@ -4,6 +4,10 @@ using B2B_Procurement___Order_Management_Platform.ArtMarket.Domain.Models;
 using B2B_Procurement___Order_Management_Platform.src.ArtMarket.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.Repositories
 {
@@ -11,61 +15,57 @@ namespace B2B_Procurement___Order_Management_Platform.ArtMarket.Infrastructure.R
     {
         Task<bool> UserExistAsync(string Email);
         Task<User?> GetByEmailAsync(string Email);
-        Task<User?> Register(RegisterDTO authDTO);
+        Task<IdentityResult?> Register(RegisterDTO authDTO);
+        Task<UserRole?> GetRolesAsync(string username);
+        Task<IList<Claim>> GetClaimsAsync(User user);
     }
+
     public class AuthRepo : IAuthRepo
     {
         private readonly AppDb _appDb;
         private readonly UserManager<User> _userManager;
-        private readonly ILogger<AuthRepo> _logger;
-        public AuthRepo(AppDb appDb, UserManager<User> userManager,ILogger<AuthRepo> logger)
+        //private readonly ILogger<AuthRepo> _logger;
+        public AuthRepo(AppDb appDb, UserManager<User> userManager)
         {
             _appDb = appDb;
             _userManager = userManager;
-            _logger = logger;
         }
 
-        public async Task<bool> UserExistAsync(string Email)
-        {
-            return await _userManager.FindByEmailAsync(Email) is not null;
-        }
+        public async Task<IList<Claim>> GetClaimsAsync(User user) => await _userManager.GetClaimsAsync(user);
+        public async Task<UserRole?> GetRolesAsync(string username) => 
+                 await _appDb.Users
+                .Where(u => u.UserName == username)
+                .Select(u => u.Role)
+                .FirstOrDefaultAsync();
+        public async Task<bool> UserExistAsync(string Email) => await _userManager.FindByEmailAsync(Email) is not null;
+        
 
         /// search for user by his email
-        public async Task<User?> GetByEmailAsync(string Email)
-        {
-            return await _appDb.Users.FirstOrDefaultAsync(u => u.Email == Email);
-        }
+        public async Task<User?> GetByEmailAsync(string Email) => await _appDb.Users.FirstOrDefaultAsync(u => u.Email == Email);
 
-        public async Task<User?> Register(RegisterDTO authDTO) 
+        public async Task<IdentityResult?> Register(RegisterDTO authDTO) 
         {
-            
+            //// 2.Chect the Role Selection
+            if (!Enum.TryParse<UserRole>(authDTO.role, true, out var parsedRole))
+            {
+                return IdentityResult.Failed(new IdentityError
+                {
+                    Code = "InvalidRole",
+                    Description = $"'{authDTO.role}' is not a valid role. Valid values are: Buyer, Artist, Admin."
+                });
+            }
             
             /// 1.create new user
-            User newUser = new User();
-            newUser.Email = authDTO.email;
-            newUser.UserName = authDTO.userName;
-            newUser.CreatedAt = DateTime.UtcNow;
-            
+            User newUser = new User
+            {  Email= authDTO.email,
+               UserName= authDTO.userName,
+               CreatedAt = DateTime.UtcNow,
+               Role = parsedRole
+            };
 
-            /// 2.save to DB
-            //await _appDb.Users.AddAsync(newUser);
-            //await _appDb.SaveChangesAsync();
+            //// 3.save to dataBase
             //// using "userManager" to:hash password automaticly& normalize the email
-            var result = await _userManager.CreateAsync(newUser, authDTO.password);
-            if (!result.Succeeded)
-            {
-                foreach (var error in result.Errors)
-                    _logger.LogError("Identity error for {Email}: {Code} - {Description}",
-                        authDTO.email, error.Code, error.Description);
-
-                return null;
-            }
-            //Assign Identity role
-            await _userManager.AddToRoleAsync(newUser, parsedRole.ToString());
-            _logger.LogInformation("User registered successfully: {Email}", authDTO.email);
-
-            /// 3.Return the new user            
-            return (newUser);
+            return await _userManager.CreateAsync(newUser,authDTO.password);
         }
 
 
